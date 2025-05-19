@@ -1,0 +1,8 @@
+{
+    "servers": {
+        "cargo": {
+            "type": "stdio",
+            "command": "cargo-mcp"
+        }
+    }
+}

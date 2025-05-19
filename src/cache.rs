@@ -7,6 +7,8 @@ use tokio::sync::Mutex;
 
 //= docs/design/technical-spec.md#caching-requirements
 //# The server MUST implement a caching system for documentation and crate information.
+
+//= docs/design/technical-spec.md#caching-requirements
 //# The server MUST store cache entries with timestamps.
 pub struct Cache<T> {
     entries: Arc<Mutex<HashMap<String, CacheEntry<T>>>>,

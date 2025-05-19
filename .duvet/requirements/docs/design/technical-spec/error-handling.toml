@@ -2,59 +2,59 @@ target = "docs/design/technical-spec.md#error-handling"
 
 # Error Handling
 #
-# The server MUST return appropriate error responses for all failure cases.
+# 🚧 The server MUST return appropriate error responses for all failure cases.
 # 
-# The server MUST return a "not found" error when a requested crate does not exist.
+# ✓ The server MUST return a "not found" error when a requested crate does not exist.
 # 
-# The server MUST return an "invalid parameters" error when an invalid version is specified.
+# ✓ The server MUST return an "invalid parameters" error when an invalid version is specified.
 # 
-# The server MUST return an "internal error" for command execution failures.
+# ✓ The server MUST return an "internal error" for command execution failures.
 # 
-# The server MUST return an "internal error" for parsing failures.
+# ✓ The server MUST return an "internal error" for parsing failures.
 # 
-# The server MUST provide error messages that are helpful for debugging.
+# ❌ The server MUST provide error messages that are helpful for debugging.
 # 
-# The server SHOULD log detailed error information for debugging purposes.
+# ❌ The server SHOULD log detailed error information for debugging purposes.
 
 [[spec]]
 level = "MUST"
 quote = '''
-The server MUST return appropriate error responses for all failure cases.
+🚧 The server MUST return appropriate error responses for all failure cases.
 '''
 
 [[spec]]
 level = "MUST"
 quote = '''
-The server MUST return a "not found" error when a requested crate does not exist.
+✓ The server MUST return a "not found" error when a requested crate does not exist.
 '''
 
 [[spec]]
 level = "MUST"
 quote = '''
-The server MUST return an "invalid parameters" error when an invalid version is specified.
+✓ The server MUST return an "invalid parameters" error when an invalid version is specified.
 '''
 
 [[spec]]
 level = "MUST"
 quote = '''
-The server MUST return an "internal error" for command execution failures.
+✓ The server MUST return an "internal error" for command execution failures.
 '''
 
 [[spec]]
 level = "MUST"
 quote = '''
-The server MUST return an "internal error" for parsing failures.
+✓ The server MUST return an "internal error" for parsing failures.
 '''
 
 [[spec]]
 level = "MUST"
 quote = '''
-The server MUST provide error messages that are helpful for debugging.
+❌ The server MUST provide error messages that are helpful for debugging.
 '''
 
 [[spec]]
 level = "SHOULD"
 quote = '''
-The server SHOULD log detailed error information for debugging purposes.
+❌ The server SHOULD log detailed error information for debugging purposes.
 '''
 

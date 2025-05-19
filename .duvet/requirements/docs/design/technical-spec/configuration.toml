@@ -2,35 +2,35 @@ target = "docs/design/technical-spec.md#configuration"
 
 # Configuration
 #
-# The server MUST support configuration of cache TTL values.
+# ✓ The server MUST support configuration of cache TTL values.
 # 
-# The server MUST support configuration of maximum cache size.
+# ✓ The server MUST support configuration of maximum cache size.
 # 
-# The server SHOULD support configuration of the nightly toolchain path.
+# ❌ The server SHOULD support configuration of the nightly toolchain path.
 # 
-# The server MAY support configuration of custom cargo command paths.
+# ❌ The server MAY support configuration of custom cargo command paths.
 
 [[spec]]
 level = "MUST"
 quote = '''
-The server MUST support configuration of cache TTL values.
+✓ The server MUST support configuration of cache TTL values.
 '''
 
 [[spec]]
 level = "MUST"
 quote = '''
-The server MUST support configuration of maximum cache size.
+✓ The server MUST support configuration of maximum cache size.
 '''
 
 [[spec]]
 level = "SHOULD"
 quote = '''
-The server SHOULD support configuration of the nightly toolchain path.
+❌ The server SHOULD support configuration of the nightly toolchain path.
 '''
 
 [[spec]]
 level = "MAY"
 quote = '''
-The server MAY support configuration of custom cargo command paths.
+❌ The server MAY support configuration of custom cargo command paths.
 '''
 

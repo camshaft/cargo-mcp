@@ -111,6 +111,7 @@ name = "cargo-mcp"
 version = "0.1.0"
 dependencies = [
  "cargo_metadata 0.19.2",
+ "futures",
  "insta",
  "public-api",
  "regex",

@@ -2,7 +2,10 @@ use std::time::Duration;
 
 //= docs/design/technical-spec.md#configuration
 //# The server MUST support configuration of cache TTL values.
+
+//= docs/design/technical-spec.md#configuration
 //# The server MUST support configuration of maximum cache size.
+
 #[derive(Debug, Clone)]
 pub struct Config {
     /// TTL for documentation cache entries
@@ -16,6 +19,9 @@ pub struct Config {
 
     /// Path to nightly toolchain for rustdoc
     pub nightly_toolchain: Option<String>,
+
+    /// Path to cargo executable
+    pub cargo_path: Option<String>,
 }
 
 impl Default for Config {
@@ -32,6 +38,9 @@ impl Default for Config {
 
             // Default to None - will use public-api's default
             nightly_toolchain: None,
+
+            // Default to None - will use system cargo
+            cargo_path: None,
         }
     }
 }

@@ -40,10 +40,20 @@ impl Server {
 
     //= docs/design/technical-spec.md#crate-documentation-resource
     //# The server MUST provide a resource at path `crate/{name}/docs`.
+
+    //= docs/design/technical-spec.md#crate-documentation-resource
     //# The server MUST accept an optional version parameter in the query string.
+
+    //= docs/design/technical-spec.md#crate-documentation-resource
     //# The server MUST generate rustdoc JSON using the nightly toolchain.
+
+    //= docs/design/technical-spec.md#crate-documentation-resource
     //# The server MUST parse the rustdoc JSON using the public-api crate.
+
+    //= docs/design/technical-spec.md#crate-documentation-resource
     //# The server MUST return documentation in a structured format containing public API items, modules, types, and traits.
+
+    //= docs/design/technical-spec.md#crate-documentation-resource
     //# The server SHOULD cache documentation results to improve performance.
     async fn get_docs(&self, name: &str, version: Option<&str>) -> Result<Value> {
         // Try cache first
@@ -74,11 +84,23 @@ impl Server {
 
     //= docs/design/technical-spec.md#crate-information-resource
     //# The server MUST provide a resource at path `crate/{name}/info`.
+
+    //= docs/design/technical-spec.md#crate-information-resource
     //# The server MUST execute the `cargo info` command to retrieve crate information.
+
+    //= docs/design/technical-spec.md#crate-information-resource
     //# The server MUST parse and return the latest version of the crate.
+
+    //= docs/design/technical-spec.md#crate-information-resource
     //# The server MUST return all available versions of the crate.
+
+    //= docs/design/technical-spec.md#crate-information-resource
     //# The server MUST return all available features and their descriptions.
+
+    //= docs/design/technical-spec.md#crate-information-resource
     //# The server MUST return the crate's dependencies.
+
+    //= docs/design/technical-spec.md#crate-information-resource
     //# The server SHOULD cache crate information with a shorter TTL than documentation.
     async fn get_info(&self, name: &str) -> Result<Value> {
         // Try cache first
@@ -113,11 +135,23 @@ impl Server {
 
     //= docs/design/technical-spec.md#project-metadata-resource
     //# The server MUST provide a resource at path `project/metadata`.
+
+    //= docs/design/technical-spec.md#project-metadata-resource
     //# The server MUST execute the `cargo metadata` command with format version 1.
+
+    //= docs/design/technical-spec.md#project-metadata-resource
     //# The server MUST return workspace member information.
+
+    //= docs/design/technical-spec.md#project-metadata-resource
     //# The server MUST return dependency information.
+
+    //= docs/design/technical-spec.md#project-metadata-resource
     //# The server MUST return target information.
+
+    //= docs/design/technical-spec.md#project-metadata-resource
     //# The server MUST return feature information.
+
+    //= docs/design/technical-spec.md#project-metadata-resource
     //# The server SHOULD NOT cache project metadata as it should reflect the current state.
     async fn get_metadata(&self) -> Result<Value> {
         let metadata = cargo_metadata::MetadataCommand::new()
@@ -130,6 +164,8 @@ impl Server {
 
     //= docs/design/technical-spec.md#security-considerations
     //# The server MUST validate all input parameters to prevent command injection.
+
+    //= docs/design/technical-spec.md#security-considerations
     //# The server MUST handle file paths securely to prevent path traversal attacks.
     fn validate_crate_name(name: &str) -> Result<()> {
         // Only allow alphanumeric characters, hyphens and underscores
@@ -137,8 +173,8 @@ impl Server {
             .chars()
             .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
         {
-            return Err(Error::InvalidVersion(format!(
-                "Invalid crate name: {}",
+            return Err(Error::InvalidInput(format!(
+                "Invalid crate name '{}': must contain only alphanumeric characters, hyphens, or underscores",
                 name
             )));
         }
@@ -152,16 +188,50 @@ impl Server {
     ) -> Result<std::path::PathBuf> {
         Self::validate_crate_name(name)?;
 
-        rustup_toolchain::install(public_api::MINIMUM_NIGHTLY_RUST_VERSION).unwrap();
+        // Install nightly toolchain
+        rustup_toolchain::install(public_api::MINIMUM_NIGHTLY_RUST_VERSION).map_err(|e| {
+            Error::DocGenFailed(format!("Failed to install nightly toolchain: {}", e))
+        })?;
 
-        // TODO is version is specified then we'll need to create a temporary crate to download it
-        let _ = version;
+        let manifest_path = if let Some(version) = version {
+            // Create a temporary directory for the versioned crate
+            let temp_dir = tempfile::tempdir()
+                .map_err(|e| Error::DocGenFailed(format!("Failed to create temp dir: {}", e)))?;
+
+            // Create Cargo.toml with specific version
+            let cargo_toml = format!(
+                r#"
+                [package]
+                name = "temp-{}"
+                version = "0.1.0"
+                edition = "2024"
+
+                [dependencies]
+                {} = "{}"
+                "#,
+                name, name, version
+            );
+
+            std::fs::write(temp_dir.path().join("Cargo.toml"), cargo_toml)
+                .map_err(|e| Error::DocGenFailed(format!("Failed to write Cargo.toml: {}", e)))?;
+
+            // Create empty lib.rs to satisfy Rust
+            std::fs::create_dir_all(temp_dir.path().join("src"))
+                .map_err(|e| Error::DocGenFailed(format!("Failed to create src dir: {}", e)))?;
+            std::fs::write(temp_dir.path().join("src/lib.rs"), "")
+                .map_err(|e| Error::DocGenFailed(format!("Failed to write lib.rs: {}", e)))?;
+
+            temp_dir.path().join("Cargo.toml")
+        } else {
+            self.state.dir.join("Cargo.toml")
+        };
 
         // Use rustdoc-json to generate JSON
         let json_path = rustdoc_json::Builder::default()
             .toolchain(public_api::MINIMUM_NIGHTLY_RUST_VERSION)
-            .manifest_path(self.state.dir.join("Cargo.toml"))
-            .build()?;
+            .manifest_path(&manifest_path)
+            .build()
+            .map_err(|e| Error::DocGenFailed(format!("Failed to generate rustdoc JSON: {}", e)))?;
 
         Ok(json_path)
     }
@@ -234,14 +304,23 @@ impl ServerHandler for Server {
             }
             ["crate", name, "info"] => self.get_info(name).await?,
             ["project", "metadata"] => self.get_metadata().await?,
-            _ => return Err(Error::InvalidVersion("Invalid resource path".into()).into()),
+            _ => {
+                let err: rmcp::Error = Error::InvalidPath(format!(
+                    "Invalid resource path '{}' - must be one of: crate/{{name}}/docs, crate/{{name}}/info, project/metadata",
+                    request.uri
+                )).into();
+                return Err(err);
+            }
         };
 
         Ok(ReadResourceResult {
             contents: vec![ResourceContents::TextResourceContents {
                 uri: request.uri,
                 mime_type: Some("application/json".into()),
-                text: serde_json::to_string_pretty(&result).map_err(|e| Error::ParseError(e))?,
+                text: serde_json::to_string_pretty(&result).map_err(|e| {
+                    let err: rmcp::Error = Error::JsonError(e).into();
+                    err
+                })?,
             }],
         })
     }

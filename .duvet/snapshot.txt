@@ -1,75 +1,123 @@
 SPECIFICATION: [Rust Documentation MCP Server Technical Specification](docs/design/technical-spec.md)
   SECTION: [General](#general)
-    TEXT[!MUST,implementation]: The server MUST implement the Model Context Protocol (MCP) specification.
-    TEXT[!MUST]: The server MUST provide access to documentation through the public-api crate's analysis of rustdoc JSON output.
-    TEXT[!MUST,implementation]: The server MUST support caching of documentation and crate information.
-    TEXT[!SHOULD]: The server SHOULD implement cache invalidation based on time-to-live (TTL) values.
-    TEXT[!MUST,implementation]: The server MUST handle concurrent requests safely.
+    TEXT[!MUST]: ✓
+    TEXT[!MUST,implementation,test]: The server MUST implement the Model Context Protocol (MCP) specification.
+    TEXT[!MUST]: 🚧
+    TEXT[!MUST,test]: The server MUST provide access to documentation through the public-api crate's analysis of rustdoc JSON output.
+    TEXT[!MUST]: ✓
+    TEXT[!MUST,implementation,test]: The server MUST support caching of documentation and crate information.
+    TEXT[!SHOULD]: ✓ The server SHOULD implement cache invalidation based on time-to-live (TTL) values.
+    TEXT[!MUST]: ✓
+    TEXT[!MUST,test]: The server MUST handle concurrent requests safely.
 
   SECTION: [Resources](#resources)
     TEXT[!MUST]: The server MUST implement the following resources:
 
   SECTION: [Crate Documentation Resource](#crate-documentation-resource)
-    TEXT[!MUST,implementation]: The server MUST provide a resource at path `crate/{name}/docs`.
-    TEXT[!MUST,implementation]: The server MUST accept an optional version parameter in the query string.
-    TEXT[!MUST,implementation]: The server MUST generate rustdoc JSON using the nightly toolchain.
-    TEXT[!MUST,implementation]: The server MUST parse the rustdoc JSON using the public-api crate.
+    TEXT[!MUST]: ✓
+    TEXT[!MUST,implementation,test]: The server MUST provide a resource at path `crate/{name}/docs`.
+    TEXT[!MUST]: ✓
+    TEXT[!MUST,implementation,test]: The server MUST accept an optional version parameter in the query string.
+    TEXT[!MUST]: 🚧
+    TEXT[!MUST,implementation,test]: The server MUST generate rustdoc JSON using the nightly toolchain.
+    TEXT[!MUST]: 🚧
+    TEXT[!MUST,implementation,test]: The server MUST parse the rustdoc JSON using the public-api crate.
+    TEXT[!MUST]: ✓
     TEXT[!MUST,implementation]: The server MUST return documentation in a structured format containing public API items, modules, types, and traits.
+    TEXT[!SHOULD]: ✓
     TEXT[!SHOULD,implementation]: The server SHOULD cache documentation results to improve performance.
 
   SECTION: [Crate Information Resource](#crate-information-resource)
-    TEXT[!MUST,implementation]: The server MUST provide a resource at path `crate/{name}/info`.
-    TEXT[!MUST,implementation]: The server MUST execute the `cargo info` command to retrieve crate information.
-    TEXT[!MUST,implementation]: The server MUST parse and return the latest version of the crate.
-    TEXT[!MUST,implementation]: The server MUST return all available versions of the crate.
-    TEXT[!MUST,implementation]: The server MUST return all available features and their descriptions.
-    TEXT[!MUST,implementation]: The server MUST return the crate's dependencies.
+    TEXT[!MUST]: ✓
+    TEXT[!MUST,implementation,test]: The server MUST provide a resource at path `crate/{name}/info`.
+    TEXT[!MUST]: ✓
+    TEXT[!MUST,implementation,test]: The server MUST execute the `cargo info` command to retrieve crate information.
+    TEXT[!MUST]: ✓
+    TEXT[!MUST,implementation,test]: The server MUST parse and return the latest version of the crate.
+    TEXT[!MUST]: ✓
+    TEXT[!MUST,implementation,test]: The server MUST return all available versions of the crate.
+    TEXT[!MUST]: ✓
+    TEXT[!MUST,implementation,test]: The server MUST return all available features and their descriptions.
+    TEXT[!MUST]: ✓
+    TEXT[!MUST,implementation,test]: The server MUST return the crate's dependencies.
+    TEXT[!SHOULD]: ✓
     TEXT[!SHOULD,implementation]: The server SHOULD cache crate information with a shorter TTL than documentation.
 
   SECTION: [Project Metadata Resource](#project-metadata-resource)
-    TEXT[!MUST,implementation]: The server MUST provide a resource at path `project/metadata`.
-    TEXT[!MUST,implementation]: The server MUST execute the `cargo metadata` command with format version 1.
-    TEXT[!MUST,implementation]: The server MUST return workspace member information.
-    TEXT[!MUST,implementation]: The server MUST return dependency information.
-    TEXT[!MUST,implementation]: The server MUST return target information.
-    TEXT[!MUST,implementation]: The server MUST return feature information.
+    TEXT[!MUST]: ✓
+    TEXT[!MUST,implementation,test]: The server MUST provide a resource at path `project/metadata`.
+    TEXT[!MUST]: ✓
+    TEXT[!MUST,implementation,test]: The server MUST execute the `cargo metadata` command with format version 1.
+    TEXT[!MUST]: ✓
+    TEXT[!MUST,implementation,test]: The server MUST return workspace member information.
+    TEXT[!MUST]: ✓
+    TEXT[!MUST,implementation,test]: The server MUST return dependency information.
+    TEXT[!MUST]: ✓
+    TEXT[!MUST,implementation,test]: The server MUST return target information.
+    TEXT[!MUST]: ✓
+    TEXT[!MUST,implementation,test]: The server MUST return feature information.
+    TEXT[!SHOULD]: ✓
     TEXT[!SHOULD,implementation]: The server SHOULD NOT cache project metadata as it should reflect the current state.
 
   SECTION: [Caching Requirements](#caching-requirements)
+    TEXT[!MUST]: ✓
     TEXT[!MUST,implementation]: The server MUST implement a caching system for documentation and crate information.
+    TEXT[!MUST]: ✓
     TEXT[!MUST,implementation]: The server MUST store cache entries with timestamps.
+    TEXT[!MUST]: ✓
     TEXT[!MUST,implementation]: The server MUST implement time-to-live (TTL) for cache entries.
-    TEXT[!MUST,implementation]: The server MUST validate cache entries before returning them.
+    TEXT[!MUST]: ✓
+    TEXT[!MUST,implementation,test]: The server MUST validate cache entries before returning them.
+    TEXT[!MUST]: ✓
     TEXT[!MUST,implementation]: The server MUST remove invalid cache entries when detected.
-    TEXT[!SHOULD]: The server SHOULD implement a maximum cache size limit.
-    TEXT[!SHOULD,implementation]: The server SHOULD implement a least-recently-used (LRU) eviction policy when the cache is full.
+    TEXT[!SHOULD]: ✓
+    TEXT[!SHOULD,test]: The server SHOULD implement a maximum cache size limit.
+    TEXT[!SHOULD]: ✓
+    TEXT[!SHOULD,implementation,test]: The server SHOULD implement a least-recently-used (LRU) eviction policy when the cache is full.
 
   SECTION: [Error Handling](#error-handling)
-    TEXT[!MUST,implementation]: The server MUST return appropriate error responses for all failure cases.
-    TEXT[!MUST,implementation]: The server MUST return a "not found" error when a requested crate does not exist.
-    TEXT[!MUST,implementation]: The server MUST return an "invalid parameters" error when an invalid version is specified.
-    TEXT[!MUST,implementation]: The server MUST return an "internal error" for command execution failures.
-    TEXT[!MUST,implementation]: The server MUST return an "internal error" for parsing failures.
-    TEXT[!MUST,implementation]: The server MUST provide error messages that are helpful for debugging.
-    TEXT[!SHOULD]: The server SHOULD log detailed error information for debugging purposes.
+    TEXT[!MUST]: 🚧
+    TEXT[!MUST,implementation,test]: The server MUST return appropriate error responses for all failure cases.
+    TEXT[!MUST]: ✓
+    TEXT[!MUST,implementation,test]: The server MUST return a "not found" error when a requested crate does not exist.
+    TEXT[!MUST]: ✓
+    TEXT[!MUST,implementation,test]: The server MUST return an "invalid parameters" error when an invalid version is specified.
+    TEXT[!MUST]: ✓
+    TEXT[!MUST,implementation,test]: The server MUST return an "internal error" for command execution failures.
+    TEXT[!MUST]: ✓
+    TEXT[!MUST,implementation,test]: The server MUST return an "internal error" for parsing failures.
+    TEXT[!MUST]: ❌
+    TEXT[!MUST,implementation,test]: The server MUST provide error messages that are helpful for debugging.
+    TEXT[!SHOULD]: ❌ The server SHOULD log detailed error information for debugging purposes.
 
   SECTION: [Configuration](#configuration)
+    TEXT[!MUST]: ✓
     TEXT[!MUST,implementation]: The server MUST support configuration of cache TTL values.
+    TEXT[!MUST]: ✓
     TEXT[!MUST,implementation]: The server MUST support configuration of maximum cache size.
-    TEXT[!SHOULD]: The server SHOULD support configuration of the nightly toolchain path.
-    TEXT[!MAY]: The server MAY support configuration of custom cargo command paths.
+    TEXT[!SHOULD]: ❌
+    TEXT[!SHOULD,implementation]: The server SHOULD support configuration of the nightly toolchain path.
+    TEXT[!MAY]: ❌
+    TEXT[!MAY,implementation]: The server MAY support configuration of custom cargo command paths.
 
   SECTION: [Security Considerations](#security-considerations)
-    TEXT[!MUST,implementation]: The server MUST validate all input parameters to prevent command injection.
+    TEXT[!MUST]: ✓
+    TEXT[!MUST,implementation,test]: The server MUST validate all input parameters to prevent command injection.
+    TEXT[!MUST]: ✓
     TEXT[!MUST,implementation]: The server MUST handle file paths securely to prevent path traversal attacks.
-    TEXT[!SHOULD]: The server SHOULD implement rate limiting for resource-intensive operations.
-    TEXT[!SHOULD]: The server SHOULD implement memory limits for cache storage.
+    TEXT[!SHOULD]: ❌
+    TEXT[!SHOULD,implementation]: The server SHOULD implement rate limiting for resource-intensive operations.
+    TEXT[!SHOULD]: ✓
+    TEXT[!SHOULD,implementation]: The server SHOULD implement memory limits for cache storage.
 
   SECTION: [Performance Considerations](#performance-considerations)
-    TEXT[!SHOULD]: The server SHOULD optimize cache hit rates for commonly accessed crates.
-    TEXT[!SHOULD]: The server SHOULD implement concurrent request handling efficiently.
-    TEXT[!SHOULD]: The server SHOULD minimize the number of cargo command executions.
-    TEXT[!MAY]: The server MAY implement background cache warming for popular crates.
+    TEXT[!SHOULD]: ✓
+    TEXT[!SHOULD,test]: The server SHOULD optimize cache hit rates for commonly accessed crates.
+    TEXT[!SHOULD]: ✓
+    TEXT[!SHOULD,test]: The server SHOULD implement concurrent request handling efficiently.
+    TEXT[!SHOULD]: 🚧
+    TEXT[!SHOULD,test]: The server SHOULD minimize the number of cargo command executions.
+    TEXT[!MAY]: ❌ The server MAY implement background cache warming for popular crates.
 
   SECTION: [Implementation Notes](#implementation-notes)
     TEXT[!SHOULD]: Implementers SHOULD refer to the examples document for guidance on implementing these requirements.

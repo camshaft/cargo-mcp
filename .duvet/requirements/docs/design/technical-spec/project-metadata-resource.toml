@@ -2,59 +2,59 @@ target = "docs/design/technical-spec.md#project-metadata-resource"
 
 # Project Metadata Resource
 #
-# The server MUST provide a resource at path `project/metadata`.
+# ✓ The server MUST provide a resource at path `project/metadata`.
 # 
-# The server MUST execute the `cargo metadata` command with format version 1.
+# ✓ The server MUST execute the `cargo metadata` command with format version 1.
 # 
-# The server MUST return workspace member information.
+# ✓ The server MUST return workspace member information.
 # 
-# The server MUST return dependency information.
+# ✓ The server MUST return dependency information.
 # 
-# The server MUST return target information.
+# ✓ The server MUST return target information.
 # 
-# The server MUST return feature information.
+# ✓ The server MUST return feature information.
 # 
-# The server SHOULD NOT cache project metadata as it should reflect the current state.
+# ✓ The server SHOULD NOT cache project metadata as it should reflect the current state.
 
 [[spec]]
 level = "MUST"
 quote = '''
-The server MUST provide a resource at path `project/metadata`.
+✓ The server MUST provide a resource at path `project/metadata`.
 '''
 
 [[spec]]
 level = "MUST"
 quote = '''
-The server MUST execute the `cargo metadata` command with format version 1.
+✓ The server MUST execute the `cargo metadata` command with format version 1.
 '''
 
 [[spec]]
 level = "MUST"
 quote = '''
-The server MUST return workspace member information.
+✓ The server MUST return workspace member information.
 '''
 
 [[spec]]
 level = "MUST"
 quote = '''
-The server MUST return dependency information.
+✓ The server MUST return dependency information.
 '''
 
 [[spec]]
 level = "MUST"
 quote = '''
-The server MUST return target information.
+✓ The server MUST return target information.
 '''
 
 [[spec]]
 level = "MUST"
 quote = '''
-The server MUST return feature information.
+✓ The server MUST return feature information.
 '''
 
 [[spec]]
 level = "SHOULD"
 quote = '''
-The server SHOULD NOT cache project metadata as it should reflect the current state.
+✓ The server SHOULD NOT cache project metadata as it should reflect the current state.
 '''
 

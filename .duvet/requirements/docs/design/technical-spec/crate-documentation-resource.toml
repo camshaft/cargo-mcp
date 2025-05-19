@@ -2,51 +2,51 @@ target = "docs/design/technical-spec.md#crate-documentation-resource"
 
 # Crate Documentation Resource
 #
-# The server MUST provide a resource at path `crate/{name}/docs`.
+# ✓ The server MUST provide a resource at path `crate/{name}/docs`.
 # 
-# The server MUST accept an optional version parameter in the query string.
+# ✓ The server MUST accept an optional version parameter in the query string.
 # 
-# The server MUST generate rustdoc JSON using the nightly toolchain.
+# 🚧 The server MUST generate rustdoc JSON using the nightly toolchain.
 # 
-# The server MUST parse the rustdoc JSON using the public-api crate.
+# 🚧 The server MUST parse the rustdoc JSON using the public-api crate.
 # 
-# The server MUST return documentation in a structured format containing public API items, modules, types, and traits.
+# ✓ The server MUST return documentation in a structured format containing public API items, modules, types, and traits.
 # 
-# The server SHOULD cache documentation results to improve performance.
+# ✓ The server SHOULD cache documentation results to improve performance.
 
 [[spec]]
 level = "MUST"
 quote = '''
-The server MUST provide a resource at path `crate/{name}/docs`.
+✓ The server MUST provide a resource at path `crate/{name}/docs`.
 '''
 
 [[spec]]
 level = "MUST"
 quote = '''
-The server MUST accept an optional version parameter in the query string.
+✓ The server MUST accept an optional version parameter in the query string.
 '''
 
 [[spec]]
 level = "MUST"
 quote = '''
-The server MUST generate rustdoc JSON using the nightly toolchain.
+🚧 The server MUST generate rustdoc JSON using the nightly toolchain.
 '''
 
 [[spec]]
 level = "MUST"
 quote = '''
-The server MUST parse the rustdoc JSON using the public-api crate.
+🚧 The server MUST parse the rustdoc JSON using the public-api crate.
 '''
 
 [[spec]]
 level = "MUST"
 quote = '''
-The server MUST return documentation in a structured format containing public API items, modules, types, and traits.
+✓ The server MUST return documentation in a structured format containing public API items, modules, types, and traits.
 '''
 
 [[spec]]
 level = "SHOULD"
 quote = '''
-The server SHOULD cache documentation results to improve performance.
+✓ The server SHOULD cache documentation results to improve performance.
 '''
 

@@ -2,59 +2,59 @@ target = "docs/design/technical-spec.md#caching-requirements"
 
 # Caching Requirements
 #
-# The server MUST implement a caching system for documentation and crate information.
+# ✓ The server MUST implement a caching system for documentation and crate information.
 # 
-# The server MUST store cache entries with timestamps.
+# ✓ The server MUST store cache entries with timestamps.
 # 
-# The server MUST implement time-to-live (TTL) for cache entries.
+# ✓ The server MUST implement time-to-live (TTL) for cache entries.
 # 
-# The server MUST validate cache entries before returning them.
+# ✓ The server MUST validate cache entries before returning them.
 # 
-# The server MUST remove invalid cache entries when detected.
+# ✓ The server MUST remove invalid cache entries when detected.
 # 
-# The server SHOULD implement a maximum cache size limit.
+# ✓ The server SHOULD implement a maximum cache size limit.
 # 
-# The server SHOULD implement a least-recently-used (LRU) eviction policy when the cache is full.
+# ✓ The server SHOULD implement a least-recently-used (LRU) eviction policy when the cache is full.
 
 [[spec]]
 level = "MUST"
 quote = '''
-The server MUST implement a caching system for documentation and crate information.
+✓ The server MUST implement a caching system for documentation and crate information.
 '''
 
 [[spec]]
 level = "MUST"
 quote = '''
-The server MUST store cache entries with timestamps.
+✓ The server MUST store cache entries with timestamps.
 '''
 
 [[spec]]
 level = "MUST"
 quote = '''
-The server MUST implement time-to-live (TTL) for cache entries.
+✓ The server MUST implement time-to-live (TTL) for cache entries.
 '''
 
 [[spec]]
 level = "MUST"
 quote = '''
-The server MUST validate cache entries before returning them.
+✓ The server MUST validate cache entries before returning them.
 '''
 
 [[spec]]
 level = "MUST"
 quote = '''
-The server MUST remove invalid cache entries when detected.
+✓ The server MUST remove invalid cache entries when detected.
 '''
 
 [[spec]]
 level = "SHOULD"
 quote = '''
-The server SHOULD implement a maximum cache size limit.
+✓ The server SHOULD implement a maximum cache size limit.
 '''
 
 [[spec]]
 level = "SHOULD"
 quote = '''
-The server SHOULD implement a least-recently-used (LRU) eviction policy when the cache is full.
+✓ The server SHOULD implement a least-recently-used (LRU) eviction policy when the cache is full.
 '''
 
