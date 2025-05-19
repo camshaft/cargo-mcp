@@ -1,0 +1,44 @@
+target = "docs/design/technical-spec.md#general"
+
+# General
+#
+# The server MUST implement the Model Context Protocol (MCP) specification.
+# 
+# The server MUST provide access to documentation through the public-api crate's analysis of rustdoc JSON output.
+# 
+# The server MUST support caching of documentation and crate information.
+# 
+# The server SHOULD implement cache invalidation based on time-to-live (TTL) values.
+# 
+# The server MUST handle concurrent requests safely.
+
+[[spec]]
+level = "MUST"
+quote = '''
+The server MUST implement the Model Context Protocol (MCP) specification.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+The server MUST provide access to documentation through the public-api crate's analysis of rustdoc JSON output.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+The server MUST support caching of documentation and crate information.
+'''
+
+[[spec]]
+level = "SHOULD"
+quote = '''
+The server SHOULD implement cache invalidation based on time-to-live (TTL) values.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+The server MUST handle concurrent requests safely.
+'''
+

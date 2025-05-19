@@ -1,0 +1,36 @@
+target = "docs/design/technical-spec.md#security-considerations"
+
+# Security Considerations
+#
+# The server MUST validate all input parameters to prevent command injection.
+# 
+# The server MUST handle file paths securely to prevent path traversal attacks.
+# 
+# The server SHOULD implement rate limiting for resource-intensive operations.
+# 
+# The server SHOULD implement memory limits for cache storage.
+
+[[spec]]
+level = "MUST"
+quote = '''
+The server MUST validate all input parameters to prevent command injection.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+The server MUST handle file paths securely to prevent path traversal attacks.
+'''
+
+[[spec]]
+level = "SHOULD"
+quote = '''
+The server SHOULD implement rate limiting for resource-intensive operations.
+'''
+
+[[spec]]
+level = "SHOULD"
+quote = '''
+The server SHOULD implement memory limits for cache storage.
+'''
+

@@ -1,0 +1,36 @@
+target = "docs/design/technical-spec.md#performance-considerations"
+
+# Performance Considerations
+#
+# The server SHOULD optimize cache hit rates for commonly accessed crates.
+# 
+# The server SHOULD implement concurrent request handling efficiently.
+# 
+# The server SHOULD minimize the number of cargo command executions.
+# 
+# The server MAY implement background cache warming for popular crates.
+
+[[spec]]
+level = "SHOULD"
+quote = '''
+The server SHOULD optimize cache hit rates for commonly accessed crates.
+'''
+
+[[spec]]
+level = "SHOULD"
+quote = '''
+The server SHOULD implement concurrent request handling efficiently.
+'''
+
+[[spec]]
+level = "SHOULD"
+quote = '''
+The server SHOULD minimize the number of cargo command executions.
+'''
+
+[[spec]]
+level = "MAY"
+quote = '''
+The server MAY implement background cache warming for popular crates.
+'''
+

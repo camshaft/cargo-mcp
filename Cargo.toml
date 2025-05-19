@@ -1,0 +1,23 @@
+[package]
+name = "cargo-mcp"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+rmcp = { path = "rust-sdk/crates/rmcp", features = ["server", "transport-io"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1.0", features = ["full"] }
+public-api = "0.47"
+rustup-toolchain = "0.1"
+rustdoc-json = "0.9"
+rustdoc-types = "0.41"
+thiserror = "1.0"
+regex = "1.9"
+cargo_metadata = "0.19"
+url = { version = "2", features = ["serde"] }
+
+[dev-dependencies]
+insta = "1.34"
+rmcp = { path = "rust-sdk/crates/rmcp", features = ["client"] }
+tempfile = "3"

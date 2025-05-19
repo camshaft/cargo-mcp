@@ -1,0 +1,12 @@
+target = "docs/design/technical-spec.md#resources"
+
+# Resources
+#
+# The server MUST implement the following resources:
+
+[[spec]]
+level = "MUST"
+quote = '''
+The server MUST implement the following resources:
+'''
+
