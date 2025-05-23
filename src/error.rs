@@ -102,12 +102,6 @@ impl From<Error> for rmcp::Error {
     }
 }
 
-impl From<public_api::Error> for Error {
-    fn from(err: public_api::Error) -> Self {
-        Error::DocGenFailed(err.to_string())
-    }
-}
-
 impl From<rustdoc_json::BuildError> for Error {
     fn from(err: rustdoc_json::BuildError) -> Self {
         Error::DocGenFailed(err.to_string())

@@ -25,6 +25,7 @@ macro_rules! assert_json_matches {
 }
 
 mod general;
+mod rustdoc;
 mod tools;
 
 /// Manages a temporary test environment

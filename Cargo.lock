@@ -130,11 +130,10 @@ dependencies = [
  "futures",
  "http",
  "insta",
- "public-api",
  "regex",
  "rmcp",
  "rustdoc-json",
- "rustdoc-types 0.41.0",
+ "rustdoc-types",
  "rustup-toolchain",
  "serde",
  "serde_json",
@@ -456,12 +455,6 @@ name = "gimli"
 version = "0.31.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "07e28edb80900c19c28f1072f2e8aeca7fa06b23cd4169cefe1af5aa3260783f"
-
-[[package]]
-name = "hashbag"
-version = "0.1.12"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "98f494b2060b2a8f5e63379e1e487258e014cee1b1725a735816c0107a2e9d93"
 
 [[package]]
 name = "hashbrown"
@@ -822,19 +815,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "public-api"
-version = "0.47.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "92f0a3ef1a7c5a2cf381b0b689c68089127d457be055fefb1291a7fa1b6983cc"
-dependencies = [
- "hashbag",
- "rustdoc-types 0.38.0",
- "serde",
- "serde_json",
- "thiserror 2.0.12",
-]
-
-[[package]]
 name = "quote"
 version = "1.0.40"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -960,15 +940,6 @@ dependencies = [
  "thiserror 2.0.12",
  "toml",
  "tracing",
-]
-
-[[package]]
-name = "rustdoc-types"
-version = "0.38.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "77ecde53e08f3f1d7a67fb635914e053b85a024c73b920524acaa5c2d78482a6"
-dependencies = [
- "serde",
 ]
 
 [[package]]

@@ -8,7 +8,6 @@ rmcp = { path = "rust-sdk/crates/rmcp", features = ["server", "transport-io"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tokio = { version = "1.0", features = ["full"] }
-public-api = "0.47"
 rustup-toolchain = "0.1"
 rustdoc-json = "0.9"
 rustdoc-types = "0.41"
