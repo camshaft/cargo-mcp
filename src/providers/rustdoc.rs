@@ -1,161 +1,334 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{
-    providers::crates_io::CratesIoProvider,
-    types::{ItemDoc, ItemKind},
+use rustdoc_types::{Id, ItemEnum, ItemKind};
+use std::{
+    collections::HashMap,
+    ops,
+    path::Path,
+    sync::{Arc, Mutex},
 };
-use rustdoc_types::{Crate, ItemEnum};
-use semver::{Version, VersionReq};
-use std::{collections::HashMap, path::Path, str::FromStr, sync::Arc};
-use tokio::sync::Mutex;
 
 pub const NIGHTLY_VERSION: &str = "nightly-2025-05-09";
 
 type Error = Box<dyn std::error::Error + Send + Sync>;
 type Result<T = (), E = Error> = std::result::Result<T, E>;
 
+#[derive(Debug, Clone)]
+pub struct Item {
+    pub id: Id,
+    pub name: String,
+    pub path: String,
+    pub search: String,
+    pub kind: ItemKind,
+    pub docs: Option<String>,
+    pub children: Vec<Id>,
+}
+
+impl Item {
+    fn child_path(&self, name: &str) -> (String, String) {
+        let path = format!("{}::{name}", self.path);
+        let search = if self.search.is_empty() {
+            name.to_string()
+        } else {
+            format!("{}::{name}", self.search)
+        };
+        (path, search)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Crate {
+    pub root_id: Id,
+    pub name: String,
+    pub items: HashMap<Id, Item>,
+    pub paths: HashMap<String, Vec<Id>>, // Maps fully qualified paths to item IDs
+}
+
+impl Crate {
+    fn from_crate(krate: &rustdoc_types::Crate, crate_name: Option<&str>) -> Self {
+        let (crate_id, crate_name) = match crate_name {
+            Some(name) => {
+                let id = *krate
+                    .external_crates
+                    .iter()
+                    .find(|(_id, info)| info.name == name)
+                    .unwrap()
+                    .0;
+
+                (id, name.to_string())
+            }
+            None => {
+                let item = krate.index.get(&krate.root).unwrap();
+                let id = item.crate_id;
+                let name = item.name.clone().unwrap();
+                (id, name)
+            }
+        };
+
+        let mut processed = Self {
+            root_id: krate.root,
+            name: crate_name,
+            items: HashMap::new(),
+            paths: HashMap::new(),
+        };
+
+        // First pass: Create all items
+        for (&id, item) in &krate.paths {
+            let Some(info) = krate.index.get(&id) else {
+                continue;
+            };
+
+            if info.crate_id != crate_id {
+                continue;
+            }
+
+            let path = item.path.join("::");
+            let search = path
+                .trim_start_matches(&processed.name)
+                .trim_start_matches("::")
+                .to_string();
+
+            let kind = item.kind;
+
+            let docs = info.docs.clone();
+
+            let item = Item {
+                id,
+                name: item.path.last().unwrap().clone(),
+                path,
+                search,
+                kind,
+                docs,
+                children: Vec::new(),
+            };
+
+            processed.items.insert(id, item);
+        }
+
+        // Build children relationships
+        let mut additional_items = HashMap::new();
+        for (&id, item) in &mut processed.items {
+            let info = krate.index.get(&id).unwrap();
+
+            match &info.inner {
+                ItemEnum::Struct(s) => {
+                    // Process impl blocks
+                    for &impl_id in &s.impls {
+                        let Some(impl_info) = krate.index.get(&impl_id) else {
+                            continue;
+                        };
+
+                        // Process items in the impl block
+                        if let ItemEnum::Impl(impl_) = &impl_info.inner {
+                            // TODO handle traits differently
+                            if impl_.trait_.is_some() {
+                                continue;
+                            }
+
+                            for &item_id in &impl_.items {
+                                let Some(info) = krate.index.get(&item_id) else {
+                                    continue;
+                                };
+                                let Some(item_name) = info.name.as_ref() else {
+                                    continue;
+                                };
+
+                                item.children.push(item_id);
+
+                                let (path, search) = item.child_path(item_name);
+                                let kind = match &info.inner {
+                                    ItemEnum::Function(_) => ItemKind::Function,
+                                    other => {
+                                        eprint!("unhandled {other:?}");
+                                        continue;
+                                    }
+                                };
+
+                                let fn_item = Item {
+                                    id: item_id,
+                                    name: item_name.clone(),
+                                    path,
+                                    search,
+                                    kind,
+                                    docs: info.docs.clone(),
+                                    children: Vec::new(),
+                                };
+                                additional_items.insert(item_id, fn_item);
+                            }
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+        processed.items.extend(additional_items);
+
+        processed
+    }
+
+    pub fn search(&self, query: &str) -> Vec<SearchResult<'_>> {
+        let mut exact_matches = Vec::new();
+        let mut scored_matches = Vec::new();
+
+        let query = query
+            .trim_start_matches(&self.name)
+            .trim_start_matches("::");
+
+        for item in self.items.values() {
+            let mut score = strsim::jaro_winkler(&item.search, query);
+
+            // if it's not a perfect match just try the item name instead
+            if score < 1.0 {
+                score = strsim::jaro_winkler(&item.name, query);
+            }
+
+            let res = SearchResult { score, item };
+
+            if res.score == 1.0 {
+                exact_matches.push(res);
+                scored_matches.clear();
+                continue;
+            }
+
+            if !exact_matches.is_empty() {
+                continue;
+            }
+
+            if res.score > 0.2 {
+                scored_matches.push(res);
+            }
+        }
+
+        // Return exact matches if we found any
+        if !exact_matches.is_empty() {
+            return exact_matches;
+        }
+
+        // Sort fuzzy matches by score and take top 5
+        scored_matches.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap());
+        scored_matches.truncate(5);
+        scored_matches
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct SearchResult<'a> {
+    pub score: f64,
+    pub item: &'a Item,
+}
+
+impl ops::Deref for SearchResult<'_> {
+    type Target = Item;
+
+    fn deref(&self) -> &Self::Target {
+        &self.item
+    }
+}
+
 pub struct RustdocProvider {
     cache: Arc<Mutex<HashMap<String, Arc<Crate>>>>,
-    crates_io: CratesIoProvider,
 }
 
 impl RustdocProvider {
-    pub fn new(crates_io: CratesIoProvider) -> Result<Self> {
+    pub fn new() -> Result<Self> {
         // Install nightly toolchain at initialization
         rustup_toolchain::install(NIGHTLY_VERSION)
             .map_err(|e| format!("Failed to install nightly toolchain: {}", e))?;
 
         Ok(Self {
             cache: Default::default(),
-            crates_io,
         })
     }
 
     pub async fn get_crate_docs(&self, name: &str, version: Option<&str>) -> Result<Arc<Crate>> {
-        let cache_key = format!("{}:{}", name, version.unwrap_or("*"));
+        let version = version.unwrap_or("*");
+        let cache_key = format!("{name}:{version}");
 
         // Check cache first
-        let cache = self.cache.lock().await;
-        if let Some(krate) = cache.get(&cache_key) {
+        if let Some(krate) = self.cache.lock().unwrap().get(&cache_key).cloned() {
             return Ok(krate.clone());
         }
-        drop(cache); // Release lock before generating docs
 
-        // Create temporary directory for the crate
+        // Create temporary workspace
         let temp_dir =
             tempfile::tempdir().map_err(|e| format!("Failed to create temp dir: {}", e))?;
 
-        let version = if let Some(version_req) = version {
-            // Get crate info and resolve version
-            let krate = self
-                .crates_io
-                .fetch(name)
-                .await
-                .map_err(|e| format!("Failed to fetch crate info: {}", e))?;
+        // Create Cargo.toml with the crate as a dependency
+        let cargo_toml = format!(
+            r#"[package]
+name = "temp-workspace"
+version = "0.1.0"
+edition = "2024"
 
-            let req = VersionReq::from_str(version_req)
-                .map_err(|e| format!("Invalid version requirement: {}", e))?;
+[dependencies]
+{name} = {version:?}
+"#
+        );
 
-            let version = krate
-                .versions()
-                .iter()
-                .filter(|v| !v.is_yanked())
-                .filter_map(|v| Version::from_str(v.version()).ok().map(|ver| (v, ver)))
-                .filter(|(_, ver)| req.matches(ver))
-                .max_by(|(_, a), (_, b)| a.cmp(b))
-                .map(|(v, _)| v)
-                .ok_or_else(|| {
-                    format!("No matching version found for requirement {}", version_req)
-                })?;
+        std::fs::write(temp_dir.path().join("Cargo.toml"), cargo_toml)
+            .map_err(|e| format!("Failed to write Cargo.toml: {}", e))?;
 
-            Some(version.version().to_string())
-        } else {
-            None
-        };
+        // Create empty lib.rs
+        std::fs::create_dir_all(temp_dir.path().join("src"))
+            .map_err(|e| format!("Failed to create src dir: {}", e))?;
+        std::fs::write(temp_dir.path().join("src/lib.rs"), "")
+            .map_err(|e| format!("Failed to write lib.rs: {}", e))?;
 
-        // Download and extract crate
-        let url = self
-            .crates_io
-            .get_download_url(name, version.as_deref())
-            .await
-            .map_err(|e| format!("Failed to get download URL: {}", e))?;
+        // Run cargo vendor to fetch dependencies
+        let status = std::process::Command::new("cargo")
+            .current_dir(temp_dir.path())
+            .arg("vendor")
+            .status()
+            .map_err(|e| format!("Failed to run cargo vendor: {}", e))?;
 
-        let response = reqwest::get(&url)
-            .await
-            .map_err(|e| format!("Failed to download crate: {}", e))?;
+        if !status.success() {
+            return Err("cargo vendor failed".into());
+        }
 
-        let bytes = response
-            .bytes()
-            .await
-            .map_err(|e| format!("Failed to read response: {}", e))?;
+        // Find the vendored crate directory
+        let vendor_dir = temp_dir.path().join("vendor");
+        let entries = std::fs::read_dir(&vendor_dir)
+            .map_err(|e| format!("Failed to read vendor dir: {}", e))?;
 
-        let tar = flate2::read::GzDecoder::new(&bytes[..]);
-        let mut archive = tar::Archive::new(tar);
-        archive
-            .unpack(temp_dir.path())
-            .map_err(|e| format!("Failed to extract crate: {}", e))?;
-
-        // Find the package directory (it's usually inside a folder named {name}-{version})
-        let entries = std::fs::read_dir(temp_dir.path())
-            .map_err(|e| format!("Failed to read temp dir: {}", e))?;
-
-        let pkg_dir = entries
+        let crate_dir = entries
             .filter_map(|e| e.ok())
-            .find(|e| e.file_type().map(|t| t.is_dir()).unwrap_or(false))
-            .ok_or_else(|| "No package directory found".to_string())?
+            .find(|e| e.file_type().map(|t| t.is_dir()).unwrap_or(false) && e.file_name() == name)
+            .ok_or_else(|| format!("Could not find vendored crate {}", name))?
             .path();
 
         // Generate rustdoc JSON
-        let krate = Arc::new(self.generate_rustdoc_json(&pkg_dir, false)?);
+        let raw_krate = self.generate_rustdoc_json(&crate_dir, false)?;
 
-        // Cache the result
-        let mut cache = self.cache.lock().await;
-        cache.insert(cache_key, krate.clone());
+        // Process and cache
+        let krate = Crate::from_crate(&raw_krate, None);
+        let krate = Arc::new(krate);
+
+        // Cache
+        {
+            let mut cache = self.cache.lock().unwrap();
+            cache.insert(cache_key.clone(), krate.clone());
+        }
 
         Ok(krate)
     }
 
     pub async fn get_workspace_docs(&self, path: &Path) -> Result<Arc<Crate>> {
         // For workspace docs, always regenerate since they can change frequently
-        let krate = self.generate_rustdoc_json(path, true)?;
-        Ok(Arc::new(krate))
+        let raw_krate = self.generate_rustdoc_json(path, true)?;
+
+        // Process and cache both versions
+        let krate = Crate::from_crate(&raw_krate, None);
+        let krate = Arc::new(krate);
+
+        Ok(krate)
     }
 
-    pub fn resolve_item(&self, krate: &Crate, path: &str) -> Result<ItemDoc> {
-        // Find the item in the index
-        let item = krate
-            .index
-            .values()
-            .find(|item| item.name.as_deref() == Some(path))
-            .ok_or_else(|| format!("Item {path} not found"))?;
-
-        // Convert to our ItemDoc format
-        let kind = match &item.inner {
-            ItemEnum::Module(_) => ItemKind::Module,
-            ItemEnum::Struct(_) => ItemKind::Struct,
-            ItemEnum::Enum(_) => ItemKind::Enum,
-            ItemEnum::Function(_) => ItemKind::Function,
-            ItemEnum::Trait(_) => ItemKind::Trait,
-            ItemEnum::TypeAlias(_) => ItemKind::Type,
-            ItemEnum::Constant { .. } => ItemKind::Constant,
-            _ => {
-                return Err(format!("Unsupported item kind: {:?}", item.inner).into());
-            }
-        };
-
-        Ok(ItemDoc {
-            name: item.name.clone().unwrap_or_default(),
-            kind,
-            docs: item.docs.clone(),
-            implemented_traits: vec![], // TODO: Extract implemented traits
-            methods: vec![],            // TODO: Extract methods
-            fields: vec![],             // TODO: Extract fields
-            variants: vec![],           // TODO: Extract variants
-        })
-    }
-
-    fn generate_rustdoc_json(&self, path: &Path, is_workspace: bool) -> Result<Crate> {
+    fn generate_rustdoc_json(
+        &self,
+        path: &Path,
+        is_workspace: bool,
+    ) -> Result<rustdoc_types::Crate> {
         // If path is a directory, append Cargo.toml
         let manifest_path = if path.ends_with("Cargo.toml") {
             path.to_path_buf()
@@ -174,8 +347,6 @@ impl RustdocProvider {
         // Parse the JSON
         let json_str = std::fs::read_to_string(&json_path)
             .map_err(|e| format!("Failed to read JSON file: {}", e))?;
-
-        eprintln!("{}", &json_str[..20.min(json_str.len())]);
 
         let mut deserializer = serde_json::Deserializer::from_str(&json_str);
         deserializer.disable_recursion_limit();

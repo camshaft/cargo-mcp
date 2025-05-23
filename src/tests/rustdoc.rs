@@ -2,10 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::TestContext;
-use crate::{
-    providers::{crates_io, rustdoc::RustdocProvider},
-    types::ItemKind,
-};
+use crate::{providers::rustdoc::RustdocProvider, types::ItemKind};
 use std::sync::Arc;
 
 #[tokio::test]
@@ -49,50 +46,81 @@ impl TestStruct {
     let root = ctx.root();
     eprintln!("Test root path: {}", root.display());
 
-    let crates_io = crates_io::CratesIoProvider::new().unwrap();
-    let provider = RustdocProvider::new(crates_io).unwrap();
+    let provider = RustdocProvider::new().unwrap();
 
     // Test rustdoc generation
     let krate = provider.get_workspace_docs(root).await.unwrap();
 
     // Test root module resolution
-    let item = provider.resolve_item(&krate, "test_crate").unwrap();
-    assert_eq!(item.name, "test_crate");
+    let items = krate.search("test_crate");
+    assert_eq!(items.len(), 1);
+    let item = &items[0];
+    assert_eq!(item.path, "test_crate");
     assert!(matches!(item.kind, ItemKind::Module));
     assert_eq!(item.docs.as_deref(), Some("Test crate documentation."));
 
     // Test struct resolution
-    let item = provider.resolve_item(&krate, "TestStruct").unwrap();
-    assert_eq!(item.name, "TestStruct");
+    let items = krate.search("TestStruct");
+    assert_eq!(items.len(), 1);
+    let item = &items[0];
+    assert_eq!(item.path, "test_crate::TestStruct");
     assert!(matches!(item.kind, ItemKind::Struct));
     assert_eq!(item.docs.as_deref(), Some("A test struct."));
 
     // Test function resolution
-    let item = provider.resolve_item(&krate, "new").unwrap();
-    assert_eq!(item.name, "new");
-    assert!(matches!(item.kind, ItemKind::Function));
-    assert_eq!(item.docs.as_deref(), Some("Creates a new instance."));
+    let items = krate.search("new");
+    assert!(!items.is_empty());
+    let new_fn = items
+        .iter()
+        .find(|i| i.path == "test_crate::TestStruct::new")
+        .unwrap();
+    assert!(matches!(new_fn.kind, ItemKind::Function));
+    assert_eq!(new_fn.docs.as_deref(), Some("Creates a new instance."));
+}
+
+#[tokio::test]
+async fn test_rustdoc_crates_io() {
+    let provider = RustdocProvider::new().unwrap();
 
     // Test crates.io docs
     let krate = provider.get_crate_docs("serde", Some("1.0")).await.unwrap();
 
     // Test root module
-    let item = provider.resolve_item(&krate, "serde").unwrap();
-    assert_eq!(item.name, "serde");
+    let items = krate.search("serde");
+    assert_eq!(items.len(), 1);
+    let item = &items[0];
+    assert_eq!(item.path, "serde");
     assert!(matches!(item.kind, ItemKind::Module));
 
     // Test well-known items
-    let item = provider.resolve_item(&krate, "Serialize").unwrap();
-    assert_eq!(item.name, "Serialize");
+    let items = krate.search("Serialize");
+    assert_eq!(items.len(), 1);
+    let item = &items[0];
+    assert_eq!(item.path, "serde::ser::Serialize");
     assert!(matches!(item.kind, ItemKind::Trait));
 
-    let item = provider.resolve_item(&krate, "Deserialize").unwrap();
-    assert_eq!(item.name, "Deserialize");
+    let items = krate.search("Deserialize");
+    assert_eq!(items.len(), 1);
+    let item = &items[0];
+    assert_eq!(item.path, "serde::de::Deserialize");
     assert!(matches!(item.kind, ItemKind::Trait));
 
-    // Print the index to help with development
-    // eprintln!("Index items:");
-    // for (id, item) in krate.index.iter() {
-    //     eprintln!("  {:?}: {:?}", id, item);
-    // }
+    // Test fuzzy matching
+    let items = krate.search("serial");
+    eprintln!("Fuzzy search 'serial' found {} items:", items.len());
+    assert!(!items.is_empty());
+    assert!(items.iter().any(|i| i.path == "serde::ser::Serialize"));
+
+    // Test qualified paths
+    let items = krate.search("ser::Serializer");
+    assert_eq!(items.len(), 1);
+    let item = &items[0];
+    assert_eq!(item.path, "serde::ser::Serializer");
+    assert!(matches!(item.kind, ItemKind::Trait));
+
+    let items = krate.search("de::Deserializer");
+    assert_eq!(items.len(), 1);
+    let item = &items[0];
+    assert_eq!(item.path, "serde::de::Deserializer");
+    assert!(matches!(item.kind, ItemKind::Trait));
 }

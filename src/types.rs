@@ -3,16 +3,7 @@
 
 use serde::Serialize;
 
-#[derive(Debug, Serialize)]
-pub enum ItemKind {
-    Module,
-    Struct,
-    Enum,
-    Function,
-    Trait,
-    Type,
-    Constant,
-}
+pub use rustdoc_types::ItemKind;
 
 #[derive(Debug, Serialize)]
 pub struct ItemDoc {
