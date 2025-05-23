@@ -16,8 +16,8 @@ impl Providers {
         let metadata = metadata::Metadata::new();
         let crates_io =
             crates_io::CratesIoProvider::new().expect("Failed to initialize crates.io provider");
-        let rustdoc =
-            rustdoc::RustdocProvider::new().expect("Failed to initialize rustdoc provider");
+        let rustdoc = rustdoc::RustdocProvider::new(crates_io.clone())
+            .expect("Failed to initialize rustdoc provider");
         Self {
             metadata,
             crates_io,
