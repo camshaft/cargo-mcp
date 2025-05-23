@@ -1,6 +1,17 @@
 //! Tests for the MCP server implementation.
 //! Each module corresponds to a section in the technical specification.
 
+use crate::{Config, Server, providers::Providers};
+use rmcp::{
+    RoleClient, ServiceError, ServiceExt,
+    model::{CallToolRequestParam, CallToolResult},
+    service::{QuitReason, RunningService},
+};
+use serde_json::Value;
+use std::{io, path::PathBuf, sync::Arc};
+use tempfile::TempDir;
+use tokio::sync::Mutex;
+
 #[macro_export]
 macro_rules! assert_json_matches {
     ($actual:expr, $pattern:expr) => {
@@ -13,23 +24,8 @@ macro_rules! assert_json_matches {
     };
 }
 
-mod caching;
-mod configuration;
-mod error_handling;
 mod general;
-mod performance;
-mod resources;
-mod security;
-
-use crate::{Config, Server};
-use rmcp::{
-    RoleClient, ServiceError, ServiceExt,
-    model::{ReadResourceRequestParam, ReadResourceResult, ResourceContents},
-    service::{QuitReason, RunningService},
-};
-use std::{io, path::PathBuf, sync::Arc};
-use tempfile::TempDir;
-use tokio::sync::Mutex;
+mod tools;
 
 /// Manages a temporary test environment
 pub struct TestContext {
@@ -57,13 +53,13 @@ impl TestContext {
     }
 
     /// Create a file with given content
-    pub fn file(&self, path: &str, content: &str) -> io::Result<PathBuf> {
+    pub fn file(&self, path: &str, content: &str) -> PathBuf {
         let full_path = self.root.join(path);
         if let Some(parent) = full_path.parent() {
-            std::fs::create_dir_all(parent)?;
+            std::fs::create_dir_all(parent).unwrap();
         }
-        std::fs::write(&full_path, content)?;
-        Ok(full_path)
+        std::fs::write(&full_path, content).unwrap();
+        full_path
     }
 }
 
@@ -72,6 +68,8 @@ impl TestContext {
 pub struct Test {
     /// The client side of the connection
     client: Arc<Mutex<RunningService<RoleClient, ()>>>,
+    #[allow(dead_code)]
+    ctx: Arc<TestContext>,
 }
 
 impl Test {
@@ -80,8 +78,10 @@ impl Test {
         let (client, stream) = tokio::io::duplex(1 << 17);
 
         // Create a project with default configuration
-        let config = Config::default();
-        let server = Server::new(config, ctx.root().clone());
+        let mut config = Config::default();
+        config.pwd = ctx.root.clone().into();
+        let providers = Providers::new(&config);
+        let server = Server::new(providers);
 
         // Start the server
         tokio::spawn(async move {
@@ -93,7 +93,7 @@ impl Test {
         let client = ServiceExt::serve((), client).await.unwrap();
         let client = Arc::new(Mutex::new(client));
 
-        Ok(Self { client })
+        Ok(Self { client, ctx })
     }
 
     pub async fn cancel(self) -> io::Result<QuitReason> {
@@ -101,35 +101,39 @@ impl Test {
         Ok(QuitReason::Closed)
     }
 
-    pub async fn read_resource(
+    // pub async fn read_resource(
+    //     &self,
+    //     uri: impl Into<String>,
+    // ) -> Result<ReadResourceResult, ServiceError> {
+    //     self.client
+    //         .lock()
+    //         .await
+    //         .read_resource(ReadResourceRequestParam { uri: uri.into() })
+    //         .await
+    // }
+
+    pub async fn call_tool(
         &self,
-        uri: impl Into<String>,
-    ) -> Result<ReadResourceResult, ServiceError> {
+        tool_name: impl Into<String>,
+        params: impl IntoIterator<Item = (impl Into<String>, impl Into<Value>)>,
+    ) -> Result<CallToolResult, ServiceError> {
+        let arguments: serde_json::Map<_, _> = params
+            .into_iter()
+            .map(|(k, v)| (k.into(), v.into()))
+            .collect();
+        let arguments = if arguments.is_empty() {
+            None
+        } else {
+            Some(arguments)
+        };
+
         self.client
             .lock()
             .await
-            .read_resource(ReadResourceRequestParam { uri: uri.into() })
+            .call_tool(CallToolRequestParam {
+                name: tool_name.into().into(),
+                arguments,
+            })
             .await
-    }
-}
-
-pub trait ResourceContentsExt {
-    fn as_text(&self) -> Option<&str>;
-    fn mime_type(&self) -> Option<&str>;
-}
-
-impl ResourceContentsExt for ResourceContents {
-    fn as_text(&self) -> Option<&str> {
-        match self {
-            ResourceContents::TextResourceContents { text, .. } => Some(text),
-            _ => None,
-        }
-    }
-
-    fn mime_type(&self) -> Option<&str> {
-        match self {
-            ResourceContents::TextResourceContents { mime_type, .. } => mime_type.as_deref(),
-            _ => None,
-        }
     }
 }

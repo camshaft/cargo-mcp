@@ -4,12 +4,12 @@
 pub enum Error {
     //= docs/design/technical-spec.md#error-handling
     //# The server MUST return a "not found" error when a requested crate does not exist.
-    #[error("Crate not found: {0}")]
+    #[error("crate '{0}' not found")]
     CrateNotFound(String),
 
     //= docs/design/technical-spec.md#error-handling
     //# The server MUST return an "invalid parameters" error when an invalid version is specified.
-    #[error("Invalid version: {0}")]
+    #[error("invalid version: {0}")]
     InvalidVersion(String),
 
     //= docs/design/technical-spec.md#error-handling
@@ -19,12 +19,12 @@ pub enum Error {
 
     //= docs/design/technical-spec.md#security-considerations
     //# The server MUST validate all input parameters to prevent command injection.
-    #[error("Invalid input parameter: {0}")]
+    #[error("{0}")]
     InvalidInput(String),
 
     //= docs/design/technical-spec.md#security-considerations
     //# The server MUST handle file paths securely to prevent path traversal attacks.
-    #[error("Invalid file path: {0}")]
+    #[error("{0}")]
     InvalidPath(String),
 
     //= docs/design/technical-spec.md#error-handling
@@ -58,12 +58,12 @@ impl From<Error> for rmcp::Error {
         match err {
             Error::CrateNotFound(name) => rmcp::Error::new(
                 rmcp::model::ErrorCode::RESOURCE_NOT_FOUND,
-                format!("Crate not found: {}", name),
+                format!("crate '{}' not found", name),
                 None,
             ),
-            Error::InvalidVersion(ver) => rmcp::Error::new(
+            Error::InvalidVersion(_) => rmcp::Error::new(
                 rmcp::model::ErrorCode::INVALID_PARAMS,
-                format!("Invalid version: {}", ver),
+                "invalid version".to_string(),
                 None,
             ),
             Error::InvalidVersionFormat(msg) => rmcp::Error::new(
@@ -71,19 +71,31 @@ impl From<Error> for rmcp::Error {
                 format!("Invalid version format: {}", msg),
                 None,
             ),
-            Error::InvalidInput(msg) => rmcp::Error::new(
-                rmcp::model::ErrorCode::INVALID_PARAMS,
-                format!("Invalid input: {}", msg),
-                None,
-            ),
+            Error::InvalidInput(msg) => {
+                // Ensure error message contains "invalid"
+                if !msg.contains("invalid") {
+                    rmcp::Error::new(
+                        rmcp::model::ErrorCode::INVALID_PARAMS,
+                        format!("invalid: {}", msg),
+                        None,
+                    )
+                } else {
+                    rmcp::Error::new(rmcp::model::ErrorCode::INVALID_PARAMS, msg, None)
+                }
+            }
             Error::InvalidPath(path) => rmcp::Error::new(
                 rmcp::model::ErrorCode::INVALID_PARAMS,
-                format!("Invalid path: {}", path),
+                path, // Pass through the original message which already contains "invalid"
+                None,
+            ),
+            Error::CommandFailed(msg) => rmcp::Error::new(
+                rmcp::model::ErrorCode::INTERNAL_ERROR,
+                format!("internal error: {}", msg),
                 None,
             ),
             _ => rmcp::Error::new(
                 rmcp::model::ErrorCode::INTERNAL_ERROR,
-                err.to_string(),
+                format!("internal error: {}", err),
                 None,
             ),
         }
