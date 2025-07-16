@@ -4,11 +4,12 @@
 use crate::providers::Providers;
 use cargo_metadata::Metadata;
 use rmcp::handler::server::ServerHandler;
+use rmcp::handler::server::tool::{Parameters, ToolRouter};
 use rmcp::model::{
     CallToolResult, Content, ErrorData, Implementation, ProtocolVersion, ServerCapabilities,
     ServerInfo,
 };
-use rmcp::tool;
+use rmcp::{tool, tool_handler, tool_router};
 use serde_json::json;
 use std::sync::Arc;
 
@@ -17,25 +18,59 @@ type McpResult<T = (), E = rmcp::Error> = core::result::Result<T, E>;
 #[derive(Clone)]
 pub struct Server {
     state: Arc<Providers>,
+    tool_router: ToolRouter<Self>,
 }
 
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+struct WorkspaceCrates {
+    directory: String,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+struct WorkspaceCrateInfo {
+    #[schemars(description = "An absolute path to the directory the crate resides")]
+    directory: String,
+    #[schemars(description = "The name of the crate")]
+    crate_name: String,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+struct CratesIoLatestVersion {
+    #[schemars(description = "The name of the crate")]
+    crate_name: String,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+struct CratesIoVersions {
+    #[schemars(description = "The name of the crate")]
+    crate_name: String,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+struct CratesIoFeatures {
+    #[schemars(description = "The name of the crate")]
+    crate_name: String,
+    #[schemars(
+        description = "Optional version to get features for. If not provided, uses latest version."
+    )]
+    version: Option<String>,
+}
+
+#[tool_router]
 impl Server {
     pub fn new(providers: Providers) -> Self {
         Self {
             state: Arc::new(providers),
+            tool_router: Self::tool_router(),
         }
     }
-}
 
-#[tool(tool_box)]
-impl Server {
     #[tool(description = "List all of the workspace member crates")]
     async fn workspace_crates(
         &self,
-        #[tool(param)]
-        #[schemars(description = "An absolute path to the directory of the workspace")]
-        directory: String,
+        Parameters(params): Parameters<WorkspaceCrates>,
     ) -> McpResult<CallToolResult> {
+        let directory = params.directory;
         let meta = self.metadata(&directory)?;
 
         let mut crates = vec![];
@@ -58,13 +93,10 @@ impl Server {
     #[tool(description = "Returns information about a specific crate")]
     async fn workspace_crate_info(
         &self,
-        #[tool(param)]
-        #[schemars(description = "An absolute path to the directory the crate resides")]
-        directory: String,
-        #[tool(param)]
-        #[schemars(description = "The name of the crate")]
-        crate_name: String,
+        Parameters(params): Parameters<WorkspaceCrateInfo>,
     ) -> McpResult<CallToolResult> {
+        let directory = params.directory;
+        let crate_name = params.crate_name;
         let meta = self.metadata(&directory)?;
 
         let packages = meta.workspace_packages();
@@ -84,10 +116,9 @@ impl Server {
     #[tool(description = "Returns the latest version for a given crate from crates.io")]
     async fn crates_io_latest_version(
         &self,
-        #[tool(param)]
-        #[schemars(description = "The name of the crate")]
-        crate_name: String,
+        Parameters(params): Parameters<CratesIoLatestVersion>,
     ) -> McpResult<CallToolResult> {
+        let crate_name = params.crate_name;
         match self.state.crates_io.fetch_latest_version(&crate_name).await {
             Ok(version) => Ok(CallToolResult::success(vec![
                 Content::json(json!({
@@ -106,10 +137,9 @@ impl Server {
     #[tool(description = "Returns all available versions for a given crate from crates.io")]
     async fn crates_io_versions(
         &self,
-        #[tool(param)]
-        #[schemars(description = "The name of the crate")]
-        crate_name: String,
+        Parameters(params): Parameters<CratesIoVersions>,
     ) -> McpResult<CallToolResult> {
+        let crate_name = params.crate_name;
         match self.state.crates_io.fetch_versions(&crate_name).await {
             Ok(versions) => {
                 let versions: Vec<_> = versions
@@ -140,15 +170,10 @@ impl Server {
     #[tool(description = "Returns the list of features for a given crate from crates.io")]
     async fn crates_io_features(
         &self,
-        #[tool(param)]
-        #[schemars(description = "The name of the crate")]
-        crate_name: String,
-        #[tool(param)]
-        #[schemars(
-            description = "Optional version to get features for. If not provided, uses latest version."
-        )]
-        version: Option<String>,
+        Parameters(params): Parameters<CratesIoFeatures>,
     ) -> McpResult<CallToolResult> {
+        let crate_name = params.crate_name;
+        let version = params.version;
         match self
             .state
             .crates_io
@@ -185,12 +210,15 @@ impl Server {
     }
 }
 
-#[tool(tool_box)]
+#[tool_handler]
 impl ServerHandler for Server {
-    fn get_info(&self) -> rmcp::model::ServerInfo {
+    fn get_info(&self) -> ServerInfo {
         ServerInfo {
             protocol_version: ProtocolVersion::V_2025_03_26,
-            capabilities: ServerCapabilities::builder().enable_resources().build(),
+            capabilities: ServerCapabilities::builder()
+                .enable_resources()
+                .enable_tools()
+                .build(),
             server_info: Implementation::from_build_env(),
             instructions: Some(include_str!("./instructions.md").into()),
         }
