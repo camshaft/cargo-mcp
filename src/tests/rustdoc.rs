@@ -1,6 +1,3 @@
-// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
-// SPDX-License-Identifier: Apache-2.0
-
 use super::TestContext;
 use crate::{providers::rustdoc::RustdocProvider, types::ItemKind};
 use std::sync::Arc;
