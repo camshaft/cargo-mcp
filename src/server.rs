@@ -64,7 +64,7 @@ struct SearchCrate {
     )]
     version: Option<String>,
     #[schemars(description = "Max results to return")]
-    max_results: Option<usize>
+    max_results: Option<usize>,
 }
 
 #[tool_router]
@@ -200,8 +200,7 @@ impl Server {
                 .unwrap(),
             ])),
             Err(err) => Ok(CallToolResult::error(vec![Content::text(format!(
-                "Failed to get features for crate {}: {}",
-                crate_name, err
+                "Failed to get features for crate {crate_name}: {err}",
             ))])),
         }
     }
@@ -223,10 +222,11 @@ impl Server {
             .await
         {
             Ok(krate) => krate,
-            Err(err) => return Ok(CallToolResult::error(vec![Content::text(format!(
-                "Failed to get features for crate {}: {}",
-                crate_name, err
-            ))])),
+            Err(err) => {
+                return Ok(CallToolResult::error(vec![Content::text(format!(
+                    "Failed to search for crate {crate_name}: {err}",
+                ))]));
+            }
         };
         let results = krate.search(&query, max_results);
         Ok(CallToolResult::success(vec![
