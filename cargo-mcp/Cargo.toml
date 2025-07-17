@@ -16,7 +16,7 @@ rustdoc-json = "0.9"
 rustdoc-types = "0.41"
 thiserror = "1.0"
 regex = "1.9"
-cargo_metadata = "0.19"
+cargo_metadata = "0.21"
 url = { version = "2", features = ["serde"] }
 tempfile = "3.8"
 tokio-util = { version = "0.7" }
