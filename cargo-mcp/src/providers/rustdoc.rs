@@ -109,55 +109,52 @@ impl Crate {
         for (&id, item) in &mut processed.items {
             let info = krate.index.get(&id).unwrap();
 
-            match &info.inner {
-                ItemEnum::Struct(s) => {
-                    // Process impl blocks
-                    for &impl_id in &s.impls {
-                        let Some(impl_info) = krate.index.get(&impl_id) else {
+            if let ItemEnum::Struct(s) = &info.inner {
+                // Process impl blocks
+                for &impl_id in &s.impls {
+                    let Some(impl_info) = krate.index.get(&impl_id) else {
+                        continue;
+                    };
+
+                    // Process items in the impl block
+                    if let ItemEnum::Impl(impl_) = &impl_info.inner {
+                        // TODO handle traits differently
+                        if impl_.trait_.is_some() {
                             continue;
-                        };
+                        }
 
-                        // Process items in the impl block
-                        if let ItemEnum::Impl(impl_) = &impl_info.inner {
-                            // TODO handle traits differently
-                            if impl_.trait_.is_some() {
+                        for &item_id in &impl_.items {
+                            let Some(info) = krate.index.get(&item_id) else {
                                 continue;
-                            }
+                            };
+                            let Some(item_name) = info.name.as_ref() else {
+                                continue;
+                            };
 
-                            for &item_id in &impl_.items {
-                                let Some(info) = krate.index.get(&item_id) else {
+                            item.children.push(item_id);
+
+                            let (path, search) = item.child_path(item_name);
+                            let kind = match &info.inner {
+                                ItemEnum::Function(_) => ItemKind::Function,
+                                other => {
+                                    eprint!("unhandled {other:?}");
                                     continue;
-                                };
-                                let Some(item_name) = info.name.as_ref() else {
-                                    continue;
-                                };
+                                }
+                            };
 
-                                item.children.push(item_id);
-
-                                let (path, search) = item.child_path(item_name);
-                                let kind = match &info.inner {
-                                    ItemEnum::Function(_) => ItemKind::Function,
-                                    other => {
-                                        eprint!("unhandled {other:?}");
-                                        continue;
-                                    }
-                                };
-
-                                let fn_item = Item {
-                                    id: item_id,
-                                    name: item_name.clone(),
-                                    path,
-                                    search,
-                                    kind,
-                                    docs: info.docs.clone(),
-                                    children: Vec::new(),
-                                };
-                                additional_items.insert(item_id, fn_item);
-                            }
+                            let fn_item = Item {
+                                id: item_id,
+                                name: item_name.clone(),
+                                path,
+                                search,
+                                kind,
+                                docs: info.docs.clone(),
+                                children: Vec::new(),
+                            };
+                            additional_items.insert(item_id, fn_item);
                         }
                     }
                 }
-                _ => {}
             }
         }
         processed.items.extend(additional_items);
@@ -221,7 +218,7 @@ impl ops::Deref for SearchResult<'_> {
     type Target = Item;
 
     fn deref(&self) -> &Self::Target {
-        &self.item
+        self.item
     }
 }
 
@@ -233,7 +230,7 @@ impl RustdocProvider {
     pub fn new() -> Result<Self> {
         // Install nightly toolchain at initialization
         rustup_toolchain::install(NIGHTLY_VERSION)
-            .map_err(|e| format!("Failed to install nightly toolchain: {}", e))?;
+            .map_err(|e| format!("Failed to install nightly toolchain: {e}"))?;
 
         Ok(Self {
             cache: Default::default(),
@@ -251,7 +248,7 @@ impl RustdocProvider {
 
         // Create temporary workspace
         let temp_dir =
-            tempfile::tempdir().map_err(|e| format!("Failed to create temp dir: {}", e))?;
+            tempfile::tempdir().map_err(|e| format!("Failed to create temp dir: {e}"))?;
 
         // Create Cargo.toml with the crate as a dependency
         let cargo_toml = format!(
@@ -266,20 +263,20 @@ edition = "2024"
         );
 
         std::fs::write(temp_dir.path().join("Cargo.toml"), cargo_toml)
-            .map_err(|e| format!("Failed to write Cargo.toml: {}", e))?;
+            .map_err(|e| format!("Failed to write Cargo.toml: {e}"))?;
 
         // Create empty lib.rs
         std::fs::create_dir_all(temp_dir.path().join("src"))
-            .map_err(|e| format!("Failed to create src dir: {}", e))?;
+            .map_err(|e| format!("Failed to create src dir: {e}"))?;
         std::fs::write(temp_dir.path().join("src/lib.rs"), "")
-            .map_err(|e| format!("Failed to write lib.rs: {}", e))?;
+            .map_err(|e| format!("Failed to write lib.rs: {e}"))?;
 
         // Run cargo vendor to fetch dependencies
         let status = std::process::Command::new("cargo")
             .current_dir(temp_dir.path())
             .arg("vendor")
             .status()
-            .map_err(|e| format!("Failed to run cargo vendor: {}", e))?;
+            .map_err(|e| format!("Failed to run cargo vendor: {e}"))?;
 
         if !status.success() {
             return Err("cargo vendor failed".into());
@@ -288,12 +285,12 @@ edition = "2024"
         // Find the vendored crate directory
         let vendor_dir = temp_dir.path().join("vendor");
         let entries = std::fs::read_dir(&vendor_dir)
-            .map_err(|e| format!("Failed to read vendor dir: {}", e))?;
+            .map_err(|e| format!("Failed to read vendor dir: {e}"))?;
 
         let crate_dir = entries
             .filter_map(|e| e.ok())
             .find(|e| e.file_type().map(|t| t.is_dir()).unwrap_or(false) && e.file_name() == name)
-            .ok_or_else(|| format!("Could not find vendored crate {}", name))?
+            .ok_or_else(|| format!("Could not find vendored crate {name}"))?
             .path();
 
         // Generate rustdoc JSON
@@ -341,16 +338,16 @@ edition = "2024"
             .manifest_path(&manifest_path)
             .document_private_items(is_workspace) // Include private items
             .build()
-            .map_err(|e| format!("Failed to generate rustdoc JSON: {}", e))?;
+            .map_err(|e| format!("Failed to generate rustdoc JSON: {e}"))?;
 
         // Parse the JSON
         let json_str = std::fs::read_to_string(&json_path)
-            .map_err(|e| format!("Failed to read JSON file: {}", e))?;
+            .map_err(|e| format!("Failed to read JSON file: {e}"))?;
 
         let mut deserializer = serde_json::Deserializer::from_str(&json_str);
         deserializer.disable_recursion_limit();
         let krate = serde::de::Deserialize::deserialize(&mut deserializer)
-            .map_err(|e| format!("Failed to parse rustdoc JSON: {}", e))?;
+            .map_err(|e| format!("Failed to parse rustdoc JSON: {e}"))?;
 
         Ok(krate)
     }

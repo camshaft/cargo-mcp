@@ -20,7 +20,7 @@ edition = "2024"
     ctx.file("src/lib.rs", "");
 
     let root = ctx.root().to_string_lossy().to_string();
-    eprintln!("Single crate test root path: {}", root);
+    eprintln!("Single crate test root path: {root}");
 
     let test = Test::start(ctx).await.unwrap();
 
@@ -74,7 +74,7 @@ edition = "2024"
     ctx.file("test-crate-2/src/lib.rs", "");
 
     let root = ctx.root().to_string_lossy().to_string();
-    eprintln!("Multiple crates test root path: {}", root);
+    eprintln!("Multiple crates test root path: {root}");
     let test = Test::start(ctx).await.unwrap();
 
     let result = test

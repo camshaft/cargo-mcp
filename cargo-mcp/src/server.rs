@@ -1,16 +1,20 @@
 use crate::providers::Providers;
 use cargo_metadata::Metadata;
-use rmcp::handler::server::ServerHandler;
-use rmcp::handler::server::tool::{Parameters, ToolRouter};
-use rmcp::model::{
-    CallToolResult, Content, ErrorData, Implementation, ProtocolVersion, ServerCapabilities,
-    ServerInfo,
+use rmcp::{
+    handler::server::{
+        ServerHandler,
+        tool::{Parameters, ToolRouter},
+    },
+    model::{
+        CallToolResult, Content, ErrorData, Implementation, ProtocolVersion, ServerCapabilities,
+        ServerInfo,
+    },
+    tool, tool_handler, tool_router,
 };
-use rmcp::{tool, tool_handler, tool_router};
 use serde_json::json;
 use std::sync::Arc;
 
-type McpResult<T = (), E = rmcp::Error> = core::result::Result<T, E>;
+type McpResult<T = (), E = rmcp::ErrorData> = core::result::Result<T, E>;
 
 #[derive(Clone)]
 pub struct Server {
@@ -139,8 +143,7 @@ impl Server {
                 .unwrap(),
             ])),
             Err(err) => Ok(CallToolResult::error(vec![Content::text(format!(
-                "Failed to get latest version for crate {}: {}",
-                crate_name, err
+                "Failed to get latest version for crate {crate_name}: {err}"
             ))])),
         }
     }
@@ -172,8 +175,7 @@ impl Server {
                 ]))
             }
             Err(err) => Ok(CallToolResult::error(vec![Content::text(format!(
-                "Failed to get versions for crate {}: {}",
-                crate_name, err
+                "Failed to get versions for crate {crate_name}: {err}"
             ))])),
         }
     }
@@ -238,7 +240,7 @@ impl Server {
 impl Server {
     fn metadata(&self, dir: &str) -> McpResult<Metadata> {
         let dir = dir.trim_start_matches("file://");
-        eprintln!("Server metadata dir: {}", dir);
+        eprintln!("Server metadata dir: {dir}");
         let meta = self
             .state
             .metadata

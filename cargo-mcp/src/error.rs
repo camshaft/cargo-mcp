@@ -53,49 +53,49 @@ pub enum Error {
     JsonError(#[from] serde_json::Error),
 }
 
-impl From<Error> for rmcp::Error {
+impl From<Error> for rmcp::ErrorData {
     fn from(err: Error) -> Self {
         match err {
-            Error::CrateNotFound(name) => rmcp::Error::new(
+            Error::CrateNotFound(name) => rmcp::ErrorData::new(
                 rmcp::model::ErrorCode::RESOURCE_NOT_FOUND,
-                format!("crate '{}' not found", name),
+                format!("crate '{name}' not found"),
                 None,
             ),
-            Error::InvalidVersion(_) => rmcp::Error::new(
+            Error::InvalidVersion(_) => rmcp::ErrorData::new(
                 rmcp::model::ErrorCode::INVALID_PARAMS,
                 "invalid version".to_string(),
                 None,
             ),
-            Error::InvalidVersionFormat(msg) => rmcp::Error::new(
+            Error::InvalidVersionFormat(msg) => rmcp::ErrorData::new(
                 rmcp::model::ErrorCode::INVALID_PARAMS,
-                format!("Invalid version format: {}", msg),
+                format!("Invalid version format: {msg}"),
                 None,
             ),
             Error::InvalidInput(msg) => {
                 // Ensure error message contains "invalid"
                 if !msg.contains("invalid") {
-                    rmcp::Error::new(
+                    rmcp::ErrorData::new(
                         rmcp::model::ErrorCode::INVALID_PARAMS,
-                        format!("invalid: {}", msg),
+                        format!("invalid: {msg}"),
                         None,
                     )
                 } else {
-                    rmcp::Error::new(rmcp::model::ErrorCode::INVALID_PARAMS, msg, None)
+                    rmcp::ErrorData::new(rmcp::model::ErrorCode::INVALID_PARAMS, msg, None)
                 }
             }
-            Error::InvalidPath(path) => rmcp::Error::new(
+            Error::InvalidPath(path) => rmcp::ErrorData::new(
                 rmcp::model::ErrorCode::INVALID_PARAMS,
                 path, // Pass through the original message which already contains "invalid"
                 None,
             ),
-            Error::CommandFailed(msg) => rmcp::Error::new(
+            Error::CommandFailed(msg) => rmcp::ErrorData::new(
                 rmcp::model::ErrorCode::INTERNAL_ERROR,
-                format!("internal error: {}", msg),
+                format!("internal error: {msg}"),
                 None,
             ),
-            _ => rmcp::Error::new(
+            _ => rmcp::ErrorData::new(
                 rmcp::model::ErrorCode::INTERNAL_ERROR,
-                format!("internal error: {}", err),
+                format!("internal error: {err}"),
                 None,
             ),
         }

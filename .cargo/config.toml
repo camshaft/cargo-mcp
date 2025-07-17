@@ -1,0 +1,2 @@
+[alias]
+repl = "run --bin mcp-repl -- cargo run --bin cargo-mcp --"

@@ -1,0 +1,96 @@
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+name: ci
+
+env:
+  CARGO_INCREMENTAL: 0
+  CARGO_NET_RETRY: 10
+  RUSTUP_MAX_RETRIES: 10
+  RUST_BACKTRACE: 1
+  # Pin the nightly toolchain to prevent breakage.
+  # This should be occasionally updated.
+  RUST_NIGHTLY_TOOLCHAIN: nightly-2025-07-16
+
+jobs:
+  rustfmt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install rust toolchain
+        id: toolchain
+        run: |
+          rustup toolchain install ${{ env.RUST_NIGHTLY_TOOLCHAIN }} --profile minimal --component rustfmt
+          rustup override set ${{ env.RUST_NIGHTLY_TOOLCHAIN }}
+
+      - name: Run cargo fmt
+        run: |
+          cargo fmt --all -- --check
+
+  clippy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install rust toolchain
+        id: toolchain
+        run: |
+          rustup toolchain install stable --profile minimal --component clippy
+          rustup override set stable
+
+      - uses: camshaft/rust-cache@v1
+
+      - name: Run cargo clippy
+        run: |
+          cargo clippy --all-features --all-targets --workspace
+
+  udeps:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install toolchain
+        id: toolchain
+        run: |
+          rustup toolchain install ${{ env.RUST_NIGHTLY_TOOLCHAIN }} --profile minimal
+          rustup override set ${{ env.RUST_NIGHTLY_TOOLCHAIN }}
+
+      - uses: camshaft/rust-cache@v1
+
+      - uses: camshaft/install@v1
+        with:
+          crate: cargo-udeps
+
+      - name: Run cargo udeps
+        run: cargo udeps --workspace --all-targets
+        env:
+          RUSTC_WRAPPER: ""
+
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macOS-latest]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Install toolchain
+        id: toolchain
+        run: |
+          rustup toolchain install stable
+          rustup override set stable
+
+      - uses: camshaft/rust-cache@v1
+
+      - name: Run tests
+        run: |
+          cargo test

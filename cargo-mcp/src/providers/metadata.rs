@@ -4,6 +4,12 @@ pub struct Metadata {
     // TODO implement a cache with change monitoring
 }
 
+impl Default for Metadata {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Metadata {
     pub fn new() -> Self {
         Self {}

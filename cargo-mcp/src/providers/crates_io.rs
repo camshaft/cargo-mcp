@@ -45,7 +45,7 @@ impl CratesIoProvider {
     pub async fn fetch_versions(&self, name: &str) -> Result<Vec<Version>, Error> {
         let krate = self.fetch(name).await?;
 
-        Ok(krate.versions().iter().cloned().collect())
+        Ok(krate.versions().to_vec())
     }
 
     pub async fn fetch_features(
@@ -60,7 +60,7 @@ impl CratesIoProvider {
                 .versions()
                 .iter()
                 .find(|v| v.version() == version)
-                .ok_or_else(|| format!("Version {} not found", version))?
+                .ok_or_else(|| format!("Version {version} not found"))?
         } else {
             krate.highest_normal_version().ok_or("No versions found")?
         };
@@ -80,7 +80,7 @@ impl CratesIoProvider {
                 .versions()
                 .iter()
                 .find(|v| v.version() == version)
-                .ok_or_else(|| format!("Version {} not found", version))?
+                .ok_or_else(|| format!("Version {version} not found"))?
         } else {
             krate.highest_normal_version().ok_or("No versions found")?
         };
@@ -109,9 +109,7 @@ impl CratesIoProvider {
     }
 
     fn get_name_variants(&self, name: &str) -> Result<impl Iterator<Item = String>, Error> {
-        Ok(Names::new(name)
-            .ok_or_else(|| "Invalid crate name")?
-            .take(3))
+        Ok(Names::new(name).ok_or("Invalid crate name")?.take(3))
     }
 
     async fn update_cache(&self, name: &str) -> Result<Option<Crate>, Error> {

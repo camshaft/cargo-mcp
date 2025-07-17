@@ -1,36 +1,8 @@
-[package]
-name = "cargo-mcp"
-version = "0.1.0"
-edition = "2024"
+[workspace]
+members = ["cargo-mcp", "mcp-repl"]
+resolver = "3"
 
-[dependencies]
-flate2 = "1.0"
-tar = "0.4"
-rmcp = { version = "0.3", features = ["server", "transport-io"] }
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-tokio = { version = "1.0", features = ["full"] }
-rustup-toolchain = "0.1"
-rustdoc-json = "0.9"
-rustdoc-types = "0.41"
-thiserror = "1.0"
-regex = "1.9"
-cargo_metadata = "0.19"
-url = { version = "2", features = ["serde"] }
-tempfile = "3.8"
-tokio-util = { version = "0.7" }
-tokio-stream = { version = "0.1", features = ["sync"] }
-xshell = "0.2"
-crates-index = "3.10.0"
-http = "1.3.1"
-reqwest = { version = "0.12", features = ["json"] }
-semver = "1.0"
-strsim = "0.11"
-schemars = "1.0.4"
-
-[dev-dependencies]
-insta = "1.34"
-rmcp = { version = "0.3", features = ["client"] }
-tempfile = "3"
-futures = "0.3"
-tokio = { version = "1.0", features = ["full", "test-util"] }
+[workspace.dependencies]
+futures = { version = "0.3" }
+rmcp = { version = "0.3" }
+tokio = { version = "1" }
