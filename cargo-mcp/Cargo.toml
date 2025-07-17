@@ -14,7 +14,7 @@ tokio = { version = "1.0", features = ["full"] }
 rustup-toolchain = "0.1"
 rustdoc-json = "0.9"
 rustdoc-types = "0.41"
-thiserror = "1.0"
+thiserror = "2.0"
 regex = "1.9"
 cargo_metadata = "0.19"
 url = { version = "2", features = ["serde"] }
