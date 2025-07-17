@@ -1,4 +1,5 @@
 use rustdoc_types::{Id, ItemEnum, ItemKind};
+use serde::Serialize;
 use std::{
     collections::HashMap,
     ops,
@@ -11,7 +12,7 @@ pub const NIGHTLY_VERSION: &str = "nightly-2025-05-09";
 type Error = Box<dyn std::error::Error + Send + Sync>;
 type Result<T = (), E = Error> = std::result::Result<T, E>;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Item {
     pub id: Id,
     pub name: String,
@@ -164,9 +165,10 @@ impl Crate {
         processed
     }
 
-    pub fn search(&self, query: &str) -> Vec<SearchResult<'_>> {
+    pub fn search(&self, query: &str, max_results: Option<usize>) -> Vec<SearchResult<'_>> {
         let mut exact_matches = Vec::new();
         let mut scored_matches = Vec::new();
+        let max_results = max_results.unwrap_or(5);
 
         let query = query
             .trim_start_matches(&self.name)
@@ -202,14 +204,14 @@ impl Crate {
             return exact_matches;
         }
 
-        // Sort fuzzy matches by score and take top 5
+        // Sort fuzzy matches by score, return max_results
         scored_matches.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap());
-        scored_matches.truncate(5);
+        scored_matches.truncate(max_results);
         scored_matches
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Serialize)]
 pub struct SearchResult<'a> {
     pub score: f64,
     pub item: &'a Item,

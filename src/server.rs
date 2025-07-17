@@ -53,6 +53,20 @@ struct CratesIoFeatures {
     version: Option<String>,
 }
 
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+struct SearchCrate {
+    #[schemars(description = "The item to search for")]
+    query: String,
+    #[schemars(description = "The name of the crate")]
+    crate_name: String,
+    #[schemars(
+        description = "Optional version to get features for. If not provided, uses latest version."
+    )]
+    version: Option<String>,
+    #[schemars(description = "Max results to return")]
+    max_results: Option<usize>
+}
+
 #[tool_router]
 impl Server {
     pub fn new(providers: Providers) -> Self {
@@ -190,6 +204,34 @@ impl Server {
                 crate_name, err
             ))])),
         }
+    }
+
+    #[tool(description = "Search a crate for an item")]
+    async fn search_crate(
+        &self,
+        Parameters(params): Parameters<SearchCrate>,
+    ) -> McpResult<CallToolResult> {
+        let crate_name = params.crate_name;
+        let version = params.version;
+        let query = params.query;
+        let max_results = params.max_results;
+
+        let krate = match self
+            .state
+            .rustdoc
+            .get_crate_docs(&crate_name, version.as_deref())
+            .await
+        {
+            Ok(krate) => krate,
+            Err(err) => return Ok(CallToolResult::error(vec![Content::text(format!(
+                "Failed to get features for crate {}: {}",
+                crate_name, err
+            ))])),
+        };
+        let results = krate.search(&query, max_results);
+        Ok(CallToolResult::success(vec![
+            Content::json(results).unwrap(),
+        ]))
     }
 }
 
