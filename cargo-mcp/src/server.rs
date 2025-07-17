@@ -115,7 +115,7 @@ impl Server {
         let meta = self.metadata(&directory)?;
 
         let packages = meta.workspace_packages();
-        let package = packages.iter().find(|pkg| pkg.name == crate_name);
+        let package = packages.iter().find(|pkg| &*pkg.name == &*crate_name);
 
         let Some(package) = package else {
             return Ok(CallToolResult::error(vec![Content::text(format!(

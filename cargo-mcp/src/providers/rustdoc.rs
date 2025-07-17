@@ -7,7 +7,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-pub const NIGHTLY_VERSION: &str = "nightly-2025-05-09";
+pub const NIGHTLY_VERSION: &str = "nightly-2025-07-16";
 
 type Error = Box<dyn std::error::Error + Send + Sync>;
 type Result<T = (), E = Error> = std::result::Result<T, E>;
@@ -275,6 +275,7 @@ edition = "2024"
         let status = std::process::Command::new("cargo")
             .current_dir(temp_dir.path())
             .arg("vendor")
+            .stdout(std::process::Stdio::null())
             .status()
             .map_err(|e| format!("Failed to run cargo vendor: {e}"))?;
 
@@ -346,9 +347,37 @@ edition = "2024"
 
         let mut deserializer = serde_json::Deserializer::from_str(&json_str);
         deserializer.disable_recursion_limit();
-        let krate = serde::de::Deserialize::deserialize(&mut deserializer)
-            .map_err(|e| format!("Failed to parse rustdoc JSON: {e}"))?;
 
-        Ok(krate)
+        match deserialize_str(&json_str) {
+            Ok(value) => Ok(value),
+            Err(err) => {
+                // try to parse as a json value to check the format version
+                let Ok(value) = deserialize_str::<serde_json::Value>(&json_str) else {
+                    return Err(err);
+                };
+
+                if let Some(format_version) = value.get("format_version").and_then(|v| v.as_u64()) {
+                    if rustdoc_types::FORMAT_VERSION as u64 != format_version {
+                        return Err(format!(
+                            "rustdoc JSON format version mismatch: expected {}, got {format_version}",
+                            rustdoc_types::FORMAT_VERSION,
+                        )
+                        .into());
+                    }
+                }
+
+                Err(err)
+            }
+        }
     }
+}
+
+fn deserialize_str<T: serde::de::DeserializeOwned>(v: &str) -> Result<T> {
+    let mut deserializer = serde_json::Deserializer::from_str(v);
+    deserializer.disable_recursion_limit();
+
+    let value = serde::de::Deserialize::deserialize(&mut deserializer)
+        .map_err(|e| format!("Failed to parse rustdoc JSON: {e}"))?;
+
+    Ok(value)
 }
