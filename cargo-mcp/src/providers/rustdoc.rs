@@ -12,33 +12,259 @@ pub const NIGHTLY_VERSION: &str = "nightly-2025-07-16";
 type Error = Box<dyn std::error::Error + Send + Sync>;
 type Result<T = (), E = Error> = std::result::Result<T, E>;
 
+type Str = Arc<str>;
+
 #[derive(Debug, Clone, Serialize)]
 pub struct Item {
+    #[serde(skip)]
     pub id: Id,
-    pub name: String,
-    pub path: String,
-    pub search: String,
+    #[serde(skip)] // just return the full path
+    pub name: Str,
+    pub path: Str,
+    #[serde(skip)] // this is just used for easier searching
+    pub search: Str,
     pub kind: ItemKind,
-    pub docs: Option<String>,
-    pub children: Vec<Id>,
+    #[serde(skip)]
+    pub docs: Option<Str>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub functions: Vec<Str>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub variants: Vec<Str>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub traits: Vec<Str>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub trait_impls: Vec<Str>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub structs: Vec<Str>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub enums: Vec<Str>,
 }
 
 impl Item {
-    fn child_path(&self, name: &str) -> (String, String) {
+    fn new(id: Id, name: Str, path: Str, search: Str, kind: ItemKind, docs: Option<Str>) -> Self {
+        Self {
+            id,
+            name,
+            path,
+            search,
+            kind,
+            docs,
+            functions: vec![],
+            variants: vec![],
+            traits: vec![],
+            trait_impls: vec![],
+            structs: vec![],
+            enums: vec![],
+        }
+    }
+
+    fn from_summary(
+        id: Id,
+        summary: &rustdoc_types::ItemSummary,
+        item: &rustdoc_types::Item,
+        krate: &Crate,
+    ) -> Self {
+        let path = Str::from(summary.path.join("::"));
+        let search = path
+            .trim_start_matches(&*krate.name)
+            .trim_start_matches("::")
+            .to_string()
+            .into();
+
+        let kind = summary.kind;
+
+        let docs = item.docs.clone().map(Str::from);
+
+        let name = summary.path.last().unwrap().clone().into();
+
+        Self::new(id, name, path, search, kind, docs)
+    }
+
+    fn sort(&mut self) {
+        let lists = [
+            &mut self.functions,
+            &mut self.variants,
+            &mut self.traits,
+            &mut self.trait_impls,
+            &mut self.structs,
+            &mut self.enums,
+        ];
+
+        for list in lists {
+            list.sort();
+            list.dedup();
+        }
+    }
+
+    fn child_path(&self, name: &str) -> (Str, Str) {
         let path = format!("{}::{name}", self.path);
         let search = if self.search.is_empty() {
             name.to_string()
         } else {
             format!("{}::{name}", self.search)
         };
-        (path, search)
+        (path.into(), search.into())
+    }
+
+    fn resolve_children(
+        &mut self,
+        info: &rustdoc_types::Item,
+        krate: &rustdoc_types::Crate,
+        additional_items: &mut HashMap<Id, Item>,
+    ) {
+        match &info.inner {
+            ItemEnum::Struct(s) => {
+                // Process impl blocks for structs
+                for &impl_id in &s.impls {
+                    let Some(impl_info) = krate.index.get(&impl_id) else {
+                        continue;
+                    };
+
+                    // Process items in the impl block
+                    if let ItemEnum::Impl(impl_) = &impl_info.inner {
+                        if let Some(i) = impl_.trait_.as_ref() {
+                            self.push_trait_impl(i);
+                            continue;
+                        }
+
+                        for &item_id in &impl_.items {
+                            let Some(info) = krate.index.get(&item_id) else {
+                                continue;
+                            };
+                            let Some(item_name) = info.name.as_ref() else {
+                                continue;
+                            };
+
+                            self.functions.push(item_name.clone().into());
+
+                            let (path, search) = self.child_path(item_name);
+                            let kind = match &info.inner {
+                                ItemEnum::Function(_) => ItemKind::Function,
+                                other => {
+                                    eprint!("unhandled struct impl item {other:?}");
+                                    continue;
+                                }
+                            };
+
+                            let fn_item = Item::new(
+                                item_id,
+                                item_name.clone().into(),
+                                path,
+                                search,
+                                kind,
+                                info.docs.clone().map(Str::from),
+                            );
+                            additional_items.insert(item_id, fn_item);
+                        }
+                    }
+                }
+            }
+            ItemEnum::Enum(e) => {
+                // Process enum variants
+                for variant in &e.variants {
+                    let Some(variant_info) = krate.index.get(variant) else {
+                        continue;
+                    };
+                    let Some(variant_name) = variant_info.name.as_ref() else {
+                        continue;
+                    };
+
+                    self.variants.push(variant_name.clone().into());
+
+                    let (path, search) = self.child_path(variant_name);
+                    let kind = ItemKind::Variant;
+
+                    let variant_item = Item::new(
+                        *variant,
+                        variant_name.clone().into(),
+                        path,
+                        search,
+                        kind,
+                        variant_info.docs.clone().map(Str::from),
+                    );
+                    additional_items.insert(*variant, variant_item);
+                }
+
+                // Process impl blocks for enums
+                for &impl_id in &e.impls {
+                    let Some(impl_info) = krate.index.get(&impl_id) else {
+                        continue;
+                    };
+
+                    // Process items in the impl block
+                    if let ItemEnum::Impl(impl_) = &impl_info.inner {
+                        if let Some(i) = impl_.trait_.as_ref() {
+                            self.push_trait_impl(i);
+                            continue;
+                        }
+
+                        for &item_id in &impl_.items {
+                            let Some(info) = krate.index.get(&item_id) else {
+                                continue;
+                            };
+                            let Some(item_name) = info.name.as_ref() else {
+                                continue;
+                            };
+
+                            self.functions.push(item_name.clone().into());
+
+                            let (path, search) = self.child_path(item_name);
+                            let kind = match &info.inner {
+                                ItemEnum::Function(_) => ItemKind::Function,
+                                other => {
+                                    eprint!("unhandled enum impl item {other:?}");
+                                    continue;
+                                }
+                            };
+
+                            let fn_item = Item::new(
+                                item_id,
+                                item_name.clone().into(),
+                                path,
+                                search,
+                                kind,
+                                info.docs.clone().map(Str::from),
+                            );
+                            additional_items.insert(item_id, fn_item);
+                        }
+                    }
+                }
+            }
+            _ => {
+                // Handle other types if needed in the future
+            }
+        }
+    }
+
+    fn push_trait_impl(&mut self, path: &rustdoc_types::Path) {
+        let name = path.path.to_string();
+        if let Some(args) = &path.args {
+            use rustdoc_types::GenericArgs;
+
+            match &**args {
+                GenericArgs::AngleBracketed { args, constraints } => {
+                    // TODO
+                    let _ = args;
+                    let _ = constraints;
+                }
+                GenericArgs::Parenthesized { inputs, output } => {
+                    // TODO
+                    let _ = inputs;
+                    let _ = output;
+                }
+                GenericArgs::ReturnTypeNotation => {
+                    // TODO
+                }
+            }
+        }
+        self.trait_impls.push(name.into());
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct Crate {
     pub root_id: Id,
-    pub name: String,
+    pub name: Str,
     pub items: HashMap<Id, Item>,
     pub paths: HashMap<String, Vec<Id>>, // Maps fully qualified paths to item IDs
 }
@@ -66,7 +292,7 @@ impl Crate {
 
         let mut processed = Self {
             root_id: krate.root,
-            name: crate_name,
+            name: crate_name.into(),
             items: HashMap::new(),
             paths: HashMap::new(),
         };
@@ -81,25 +307,7 @@ impl Crate {
                 continue;
             }
 
-            let path = item.path.join("::");
-            let search = path
-                .trim_start_matches(&processed.name)
-                .trim_start_matches("::")
-                .to_string();
-
-            let kind = item.kind;
-
-            let docs = info.docs.clone();
-
-            let item = Item {
-                id,
-                name: item.path.last().unwrap().clone(),
-                path,
-                search,
-                kind,
-                docs,
-                children: Vec::new(),
-            };
+            let item = Item::from_summary(id, item, &info, &processed);
 
             processed.items.insert(id, item);
         }
@@ -108,54 +316,8 @@ impl Crate {
         let mut additional_items = HashMap::new();
         for (&id, item) in &mut processed.items {
             let info = krate.index.get(&id).unwrap();
-
-            if let ItemEnum::Struct(s) = &info.inner {
-                // Process impl blocks
-                for &impl_id in &s.impls {
-                    let Some(impl_info) = krate.index.get(&impl_id) else {
-                        continue;
-                    };
-
-                    // Process items in the impl block
-                    if let ItemEnum::Impl(impl_) = &impl_info.inner {
-                        // TODO handle traits differently
-                        if impl_.trait_.is_some() {
-                            continue;
-                        }
-
-                        for &item_id in &impl_.items {
-                            let Some(info) = krate.index.get(&item_id) else {
-                                continue;
-                            };
-                            let Some(item_name) = info.name.as_ref() else {
-                                continue;
-                            };
-
-                            item.children.push(item_id);
-
-                            let (path, search) = item.child_path(item_name);
-                            let kind = match &info.inner {
-                                ItemEnum::Function(_) => ItemKind::Function,
-                                other => {
-                                    eprint!("unhandled {other:?}");
-                                    continue;
-                                }
-                            };
-
-                            let fn_item = Item {
-                                id: item_id,
-                                name: item_name.clone(),
-                                path,
-                                search,
-                                kind,
-                                docs: info.docs.clone(),
-                                children: Vec::new(),
-                            };
-                            additional_items.insert(item_id, fn_item);
-                        }
-                    }
-                }
-            }
+            item.resolve_children(info, krate, &mut additional_items);
+            item.sort();
         }
         processed.items.extend(additional_items);
 
@@ -168,7 +330,7 @@ impl Crate {
         let max_results = max_results.unwrap_or(5);
 
         let query = query
-            .trim_start_matches(&self.name)
+            .trim_start_matches(&*self.name)
             .trim_start_matches("::");
 
         for item in self.items.values() {
@@ -176,7 +338,7 @@ impl Crate {
 
             // if it's not a perfect match just try the item name instead
             if score < 1.0 {
-                score = strsim::jaro_winkler(&item.name, query);
+                score = score.max(strsim::jaro_winkler(&item.name, query));
             }
 
             let res = SearchResult { score, item };

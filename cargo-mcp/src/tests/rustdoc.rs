@@ -52,7 +52,7 @@ impl TestStruct {
     let items = krate.search("test_crate", None);
     assert_eq!(items.len(), 1);
     let item = &items[0];
-    assert_eq!(item.path, "test_crate");
+    assert_eq!(&*item.path, "test_crate");
     assert!(matches!(item.kind, ItemKind::Module));
     assert_eq!(item.docs.as_deref(), Some("Test crate documentation."));
 
@@ -60,7 +60,7 @@ impl TestStruct {
     let items = krate.search("TestStruct", None);
     assert_eq!(items.len(), 1);
     let item = &items[0];
-    assert_eq!(item.path, "test_crate::TestStruct");
+    assert_eq!(&*item.path, "test_crate::TestStruct");
     assert!(matches!(item.kind, ItemKind::Struct));
     assert_eq!(item.docs.as_deref(), Some("A test struct."));
 
@@ -69,7 +69,7 @@ impl TestStruct {
     assert!(!items.is_empty());
     let new_fn = items
         .iter()
-        .find(|i| i.path == "test_crate::TestStruct::new")
+        .find(|i| &*i.path == "test_crate::TestStruct::new")
         .unwrap();
     assert!(matches!(new_fn.kind, ItemKind::Function));
     assert_eq!(new_fn.docs.as_deref(), Some("Creates a new instance."));
@@ -86,38 +86,38 @@ async fn test_rustdoc_crates_io() {
     let items = krate.search("serde", None);
     assert_eq!(items.len(), 1);
     let item = &items[0];
-    assert_eq!(item.path, "serde");
+    assert_eq!(&*item.path, "serde");
     assert!(matches!(item.kind, ItemKind::Module));
 
     // Test well-known items
     let items = krate.search("Serialize", None);
     assert_eq!(items.len(), 1);
     let item = &items[0];
-    assert_eq!(item.path, "serde::ser::Serialize");
+    assert_eq!(&*item.path, "serde::ser::Serialize");
     assert!(matches!(item.kind, ItemKind::Trait));
 
     let items = krate.search("Deserialize", None);
     assert_eq!(items.len(), 1);
     let item = &items[0];
-    assert_eq!(item.path, "serde::de::Deserialize");
+    assert_eq!(&*item.path, "serde::de::Deserialize");
     assert!(matches!(item.kind, ItemKind::Trait));
 
     // Test fuzzy matching
     let items = krate.search("serial", None);
     eprintln!("Fuzzy search 'serial' found {} items:", items.len());
     assert!(!items.is_empty());
-    assert!(items.iter().any(|i| i.path == "serde::ser::Serialize"));
+    assert!(items.iter().any(|i| &*i.path == "serde::ser::Serialize"));
 
     // Test qualified paths
     let items = krate.search("ser::Serializer", None);
     assert_eq!(items.len(), 1);
     let item = &items[0];
-    assert_eq!(item.path, "serde::ser::Serializer");
+    assert_eq!(&*item.path, "serde::ser::Serializer");
     assert!(matches!(item.kind, ItemKind::Trait));
 
     let items = krate.search("de::Deserializer", None);
     assert_eq!(items.len(), 1);
     let item = &items[0];
-    assert_eq!(item.path, "serde::de::Deserializer");
+    assert_eq!(&*item.path, "serde::de::Deserializer");
     assert!(matches!(item.kind, ItemKind::Trait));
 }
